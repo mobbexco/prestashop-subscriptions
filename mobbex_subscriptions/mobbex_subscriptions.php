@@ -4,6 +4,8 @@ defined('_PS_VERSION_') || exit;
 
 // Subscription classes
 require_once dirname(__FILE__) . '/classes/Helper.php';
+require_once dirname(__FILE__) . '/classes/Subscription.php';
+require_once dirname(__FILE__) . '/classes/Subscriber.php';
 
 // Main module classes
 include_once dirname(__FILE__) . '/../mobbex/classes/Api.php';
