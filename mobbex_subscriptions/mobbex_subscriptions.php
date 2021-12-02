@@ -2,19 +2,17 @@
 
 defined('_PS_VERSION_') || exit;
 
+// Subscription classes
 require_once dirname(__FILE__) . '/classes/Helper.php';
-require_once dirname(__FILE__) . '/../mobbex/classes/Api.php';
-require_once dirname(__FILE__) . '/../mobbex/classes/Updater.php';
-require_once dirname(__FILE__) . '/../mobbex/classes/Exception.php';
-require_once dirname(__FILE__) . '/../mobbex/classes/MobbexHelper.php';
-require_once dirname(__FILE__) . '/../mobbex/classes/MobbexTransaction.php';
-require_once dirname(__FILE__) . '/../mobbex/classes/MobbexCustomFields.php';
+
+// Main module classes
+include_once dirname(__FILE__) . '/../mobbex/classes/Api.php';
+include_once dirname(__FILE__) . '/../mobbex/classes/Updater.php';
+include_once dirname(__FILE__) . '/../mobbex/classes/Exception.php';
+include_once dirname(__FILE__) . '/../mobbex/classes/MobbexHelper.php';
 
 class Mobbex_Subscriptions extends Module
 {
-    /** @var \Mobbex\Api */
-    public $api;
-
     /** @var \Mobbex\Updater */
     public $updater;
 
@@ -35,25 +33,35 @@ class Mobbex_Subscriptions extends Module
     public $displayName      = 'Mobbex Subscriptions';
     public $description      = 'Plugin de pago que provee la funcionalidad de suscripciones';
     public $confirmUninstall = '¿Seguro que desea desinstalar el módulo?';
+    public $tab              = 'payments_gateways';
 
     public function __construct()
     {
-        $this->api     = new \Mobbex\Api();
-        $this->updater = new \Mobbex\Updater('mobbexco/prestashop-subscriptions');
-
         $this->checkDependencies();
         parent::__construct();
+
+        if ($this->warning)
+            return;
+
+        $this->helper  = new \Mobbex\Subscriptions\Helper;
+        $this->updater = new \Mobbex\Updater('mobbexco/prestashop-subscriptions');
     }
 
     public function checkDependencies()
     {
+        if (!class_exists('\\Mobbex\\Api'))
+            $this->warning = 'Es necesario que el módulo principal de Mobbex esté instalado.';
+
         if (!extension_loaded('curl'))
-            $this->_errors[] = 'Mobbex Subscriptions requiere la extensión cUR para funcionar correctamente';
+            $this->warning = 'Es necesario que la extensión cURL esté habilitada.';
     }
 
     public function install()
     {
-        return parent::install() && $this->registerHooks();
+        // Get install query from sql file
+        $sql = str_replace(['PREFIX_', 'ENGINE_TYPE'], [_DB_PREFIX_, _MYSQL_ENGINE_], file_get_contents(dirname(__FILE__) . '/install.sql'));
+
+        return !$this->warning && DB::getInstance()->execute($sql) && parent::install() && $this->registerHooks();
     }
 
     /**
@@ -69,11 +77,6 @@ class Mobbex_Subscriptions extends Module
             'displayMobbexCategorySettings',
             'actionProductUpdate'
         ];
-
-        $ps17Hooks = $ps16Hooks = [];
-
-        // Merge current version hooks with common hooks
-        $hooks = array_merge($hooks, _PS_VERSION_ > '1.7' ? $ps17Hooks : $ps16Hooks);
 
         foreach ($hooks as $hookName) {
             if (!$this->registerHook($hookName))
