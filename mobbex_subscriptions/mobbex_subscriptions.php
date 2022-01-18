@@ -79,6 +79,7 @@ class Mobbex_Subscriptions extends Module
             'displayMobbexProductSettings',
             'displayMobbexCategorySettings',
             'actionProductUpdate',
+            'actionMobbexProcessPayment',
         ];
 
         foreach ($hooks as $hookName) {
@@ -169,6 +170,41 @@ class Mobbex_Subscriptions extends Module
             $free_trial,
             $signup_fee
         );
-        $subscription->save();
+
+        return $subscription->save();
+    }
+
+    public function hookActionMobbexProcessPayment($cart)
+    {
+        // Load subscription from cart
+        $subscription = $this->helper->getSubscriptionFromCart($cart);
+
+        if (!$subscription)
+            throw new \Mobbex\Exception('Mobbex Error: No Subscriptions in cart');
+
+        // Get customer data
+        $customer = \MobbexHelper::getCustomer($cart);
+
+        // Create subscriber
+        $subscriber = new \MobbexSubscriber(
+            $cart->id,
+            $subscription->uid,
+            (bool) \Configuration::get('MOBBEX_TEST_MODE'),
+            $customer['name'],
+            $customer['email'],
+            $customer['phone'],
+            $customer['identification']
+        );
+        $subscriber->save();
+
+        if (!$subscriber->uid)
+            throw new \Mobbex\Exception('Mobbex Error: Subscriber creation failed');
+
+        return [
+            'id'         => $subscription->uid,
+            'sid'        => $subscriber->uid,
+            'url'        => $subscriber->source_url,
+            'return_url' => $this->helper->getUrl('notification', 'callback', ['product_id' => $subscription->product_id])
+        ];
     }
 }

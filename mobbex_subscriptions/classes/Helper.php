@@ -22,4 +22,47 @@ class Helper
             'action'     => $action
         ], $extraParams));
     }
+
+    /**
+     * Get a Subscription using UID.
+     * 
+     * @param string $uid
+     * 
+     * @return \MobbexSubscription|null
+     */
+    public function getSubscriptionByUid($uid)
+    {
+        $product_id = \Db::getInstance()->getValue('SELECT product_id FROM ' . _DB_PREFIX_ . "mobbex_subscription WHERE uid = '$uid'");
+        return $product_id ? new \MobbexSubscription($product_id) : null;
+    }
+
+    /**
+     * Get a Subscription from cart products if there is any.
+     * 
+     * @param Cart $cart
+     * 
+     * @return \MobbexSubscription|null
+     */
+    public function getSubscriptionFromCart($cart)
+    {
+        foreach ($cart->getProducts(true) as $product) {
+            $subscription = new \MobbexSubscription($product['id_product']);
+
+            if ($subscription->uid)
+                return $subscription;
+        }
+    }
+
+    /**
+     * Get a Subscriber using UID.
+     * 
+     * @param string $uid
+     * 
+     * @return \MobbexSubscriber|null
+     */
+    public function getSubscriberByUid($uid)
+    {
+        $cart_id = \Db::getInstance()->getValue('SELECT cart_id FROM ' . _DB_PREFIX_ . "mobbex_subscriber WHERE uid = '$uid'");
+        return $cart_id ? new \MobbexSubscription($cart_id) : null;
+    }
 }
