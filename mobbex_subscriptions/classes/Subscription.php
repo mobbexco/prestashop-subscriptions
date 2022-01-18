@@ -1,8 +1,6 @@
 <?php
 
-namespace Mobbex;
-
-class Subscription extends \ObjectModel
+class MobbexSubscription extends \Mobbex\Model
 {
     /** @var \Mobbex\Api */
     public $api;
@@ -27,6 +25,17 @@ class Subscription extends \ObjectModel
     public $limit;
     public $free_trial;
     public $signup_fee;
+
+    public $fillable = [
+        'type',
+        'total',
+        'name',
+        'description',
+        'limit',
+        'interval',
+        'free_trial',
+        'signup_fee'
+    ];
 
     public static $definition = [
         'table'     => 'mobbex_subscription',
@@ -81,16 +90,33 @@ class Subscription extends \ObjectModel
     ];
 
     /**
-     * Load/build the Subscription from product id.
+     * Build a Subscription from product id.
      * 
-     * @param mixed $args Parent ObjectModel constructor args.
+     * @param int|null $productId
+     * @param string|null $type "manual" | "dynamic"
+     * @param int|float|null $total Amount to charge.
+     * @param string|null $name
+     * @param string|null $description
+     * @param int|null $limit Maximum number of executions.
+     * @param string|null $interval Interval between executions.
+     * @param int|null $freeTrial Number of free periods.
+     * @param int|float|null $signupFee Different initial amount.
      */
-    public function __construct(...$args)
-    {
+    public function __construct(
+        $productId = null,
+        $type = null,
+        $total = null,
+        $name = null,
+        $description = null,
+        $limit = null,
+        $interval = null,
+        $freeTrial = null,
+        $signupFee = null
+    ) {
         $this->api    = new \Mobbex\Api;
         $this->helper = new \Mobbex\Subscriptions\Helper;
 
-        parent::__construct(...$args);
+        parent::__construct(...func_get_args());
     }
 
     /**
@@ -121,7 +147,9 @@ class Subscription extends \ObjectModel
         ];
 
         try {
-            return $this->api->request($data)['uid'];
+            $response = $this->api->request($data);
+
+            return isset($response['uid']) ? $response['uid'] : $this->uid;
         } catch (\Exception $e) {
             \PrestaShopLogger::addLog('Mobbex Subscription Create/Update Error: ' . $e->getMessage(), 3, null, 'Mobbex', $this->product_id, true);
         }
@@ -130,12 +158,12 @@ class Subscription extends \ObjectModel
     /**
      * Save/update data to db creating subscription from Mobbex API.
      * 
-     * @param bool $null_values
-     * @param bool $auto_date
+     * @param bool $nullValues
+     * @param bool $autoDate
      * 
      * @return bool True if saved correctly.
      */
-    public function save($null_values = false, $auto_date = true)
+    public function save($nullValues = false, $autoDate = true)
     {
         $uid = $this->create();
 
@@ -143,7 +171,7 @@ class Subscription extends \ObjectModel
         if ($uid)
             $this->uid = $uid;
 
-        return $uid && parent::save($null_values, $auto_date);
+        return $uid && parent::save($nullValues, $autoDate);
     }
 
     /**

@@ -1,8 +1,6 @@
 <?php
 
-namespace Mobbex;
-
-class Subscriber extends \ObjectModel
+class MobbexSubscriber extends \Mobbex\Model
 {
     /** @var \Mobbex\Api */
     public $api;
@@ -25,6 +23,15 @@ class Subscriber extends \ObjectModel
     public $start_date;
     public $last_execution;
     public $next_execution;
+
+    public $fillable = [
+        'subscription_uid',
+        'test',
+        'name',
+        'email',
+        'phone',
+        'identification',
+    ];
 
     public static $definition = [
         'table'     => 'mobbex_subscriber',
@@ -95,16 +102,29 @@ class Subscriber extends \ObjectModel
     ];
 
     /**
-     * Load/build the Subscriber from cart id.
+     * Build a Subscriber from cart id.
      * 
-     * @param mixed $args Parent ObjectModel constructor args.
+     * @param int|null $cartId
+     * @param string|null $subscriptionUid
+     * @param bool|null $test Enable test mode for this subscriber.
+     * @param string|null $name
+     * @param string|null $email
+     * @param string|null $phone
+     * @param string|null $identification Tax-ID or DNI of the customer.
      */
-    public function __construct(...$args)
-    {
+    public function __construct(
+        $cartId = null,
+        $subscriptionUid = null,
+        $test = null,
+        $name = null,
+        $email = null,
+        $phone = null,
+        $identification = null
+    ) {
         $this->api    = new \Mobbex\Api;
         $this->helper = new \Mobbex\Subscriptions\Helper;
 
-        parent::__construct(...$args);
+        parent::__construct(...func_get_args());
     }
 
     /**
