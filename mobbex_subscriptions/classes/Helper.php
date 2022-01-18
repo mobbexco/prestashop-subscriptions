@@ -15,7 +15,7 @@ class Helper
      */
     public function getUrl($controller, $action, $extraParams = [])
     {
-        return Tools::getShopDomainSsl(true, true) . __PS_BASE_URI__ . 'index.php?' . http_build_query(array_merge([
+        return \Tools::getShopDomainSsl(true, true) . __PS_BASE_URI__ . 'index.php?' . http_build_query(array_merge([
             'fc'         => 'module',
             'module'     => 'mobbex_subscriptions',
             'controller' => $controller,

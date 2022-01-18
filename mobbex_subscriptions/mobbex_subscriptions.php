@@ -77,7 +77,7 @@ class Mobbex_Subscriptions extends Module
             'displayMobbexConfiguration',
             'displayMobbexProductSettings',
             'displayMobbexCategorySettings',
-            'actionProductUpdate'
+            'actionProductUpdate',
         ];
 
         foreach ($hooks as $hookName) {
@@ -122,5 +122,52 @@ class Mobbex_Subscriptions extends Module
         ]);
 
         return $form;
+    }
+
+    public function hookDisplayMobbexProductSettings($params)
+    {
+        $subscription = new \MobbexSubscription($params['id']);
+
+        $this->context->smarty->assign([
+            'subscription_type' => \Configuration::get('MOBBEX_SUBSCRIPTION_TYPE') != 'manual' ? 'dynamic' : 'manual',
+            'subscription_mode' => (bool) $subscription->uid,
+            'charge_interval'   => preg_replace('/[^0-9]/', '', (string) $subscription->interval) ?: 1,
+            'charge_period'     => preg_replace('/[0-9]/', '', (string) $subscription->interval) ?: 'm',
+            'free_trial'        => $subscription->free_trial,
+            'signup_fee'        => $subscription->signup_fee,
+        ]);
+
+        return $this->display(__FILE__, 'views/product-settings.tpl');
+    }
+
+    public function hookActionProductUpdate($params)
+    {
+        // Exit if is bulk import
+        if (strnatcasecmp(Tools::getValue('controller'), 'adminImport') === 0)
+            return;
+
+        // Get and validate values
+        $subscription_mode = !empty($_POST['subscription_mode']) && $_POST['subscription_mode'] == 'yes';
+        $charge_interval   = !empty($_POST['charge_interval']) && is_numeric($_POST['charge_interval']) ? $_POST['charge_interval'] : 1;
+        $charge_period     = !empty($_POST['charge_period']) && in_array($_POST['charge_period'], ['d', 'w', 'm', 'y']) ? $_POST['charge_period'] : 'm';
+        $free_trial        = !empty($_POST['free_trial']) && is_numeric($_POST['free_trial']) ? $_POST['free_trial'] : 0;
+        $signup_fee        = !empty($_POST['signup_fee']) && is_numeric($_POST['signup_fee']) ? $_POST['signup_fee'] : 0;
+
+        if (!$subscription_mode)
+            return;
+
+        // Create subscription
+        $subscription = new \MobbexSubscription(
+            $params['id_product'],
+            Configuration::get('MOBBEX_SUBSCRIPTION_TYPE') != 'manual' ? 'dynamic' : 'manual',
+            $params['product']->getPrice(),
+            $params['product']->name[$this->context->language->id],
+            $params['product']->description_short[$this->context->language->id], // Or re-build product using language id
+            0,
+            $charge_interval . $charge_period,
+            $free_trial,
+            $signup_fee
+        );
+        $subscription->save();
     }
 }
