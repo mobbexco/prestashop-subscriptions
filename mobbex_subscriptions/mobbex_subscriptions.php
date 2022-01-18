@@ -2,16 +2,17 @@
 
 defined('_PS_VERSION_') || exit;
 
+// Main module classes
+include_once dirname(__FILE__) . '/../mobbex/classes/Api.php';
+include_once dirname(__FILE__) . '/../mobbex/classes/Model.php';
+include_once dirname(__FILE__) . '/../mobbex/classes/Updater.php';
+include_once dirname(__FILE__) . '/../mobbex/classes/Exception.php';
+include_once dirname(__FILE__) . '/../mobbex/classes/MobbexHelper.php';
+
 // Subscription classes
 require_once dirname(__FILE__) . '/classes/Helper.php';
 require_once dirname(__FILE__) . '/classes/Subscription.php';
 require_once dirname(__FILE__) . '/classes/Subscriber.php';
-
-// Main module classes
-include_once dirname(__FILE__) . '/../mobbex/classes/Api.php';
-include_once dirname(__FILE__) . '/../mobbex/classes/Updater.php';
-include_once dirname(__FILE__) . '/../mobbex/classes/Exception.php';
-include_once dirname(__FILE__) . '/../mobbex/classes/MobbexHelper.php';
 
 class Mobbex_Subscriptions extends Module
 {
@@ -51,7 +52,7 @@ class Mobbex_Subscriptions extends Module
 
     public function checkDependencies()
     {
-        if (!class_exists('\\Mobbex\\Api'))
+        if (!class_exists('\\Mobbex\\Model'))
             $this->warning = 'Es necesario que el módulo principal de Mobbex esté instalado.';
 
         if (!extension_loaded('curl'))
