@@ -17,6 +17,7 @@ class MobbexSubscriber extends \Mobbex\Model
     public $email;
     public $phone;
     public $identification;
+    public $customer_id;
     public $source_url;
     public $control_url;
     public $register_data;
@@ -31,6 +32,7 @@ class MobbexSubscriber extends \Mobbex\Model
         'email',
         'phone',
         'identification',
+        'customer_id',
     ];
 
     public static $definition = [
@@ -54,7 +56,7 @@ class MobbexSubscriber extends \Mobbex\Model
                 'type'     => self::TYPE_INT,
                 'required' => false
             ],
-            'test'  => [
+            'test' => [
                 'type'     => self::TYPE_INT,
                 'required' => false
             ],
@@ -72,6 +74,10 @@ class MobbexSubscriber extends \Mobbex\Model
             ],
             'identification' => [
                 'type'     => self::TYPE_STRING,
+                'required' => false
+            ],
+            'customer_id' => [
+                'type'     => self::TYPE_INT,
                 'required' => false
             ],
             'source_url' => [
@@ -111,6 +117,7 @@ class MobbexSubscriber extends \Mobbex\Model
      * @param string|null $email
      * @param string|null $phone
      * @param string|null $identification Tax-ID or DNI of the customer.
+     * @param int|null $customerId
      */
     public function __construct(
         $cartId = null,
@@ -119,7 +126,8 @@ class MobbexSubscriber extends \Mobbex\Model
         $name = null,
         $email = null,
         $phone = null,
-        $identification = null
+        $identification = null,
+        $customerId = null
     ) {
         $this->api    = new \Mobbex\Api;
         $this->helper = new \Mobbex\Subscriptions\Helper;
@@ -152,7 +160,9 @@ class MobbexSubscriber extends \Mobbex\Model
                 'customer'  => [
                     'name'           => $this->name,
                     'email'          => $this->email,
+                    'phone'          => $this->phone,
                     'identification' => $this->identification,
+                    'uid'            => $this->customer_id,
                 ]
             ]
         ];

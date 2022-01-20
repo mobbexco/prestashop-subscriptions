@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS PREFIX_mobbex_subscriber (
     `email` TEXT NOT NULL,
     `phone` TEXT NOT NULL,
     `identification` TEXT NOT NULL,
+    `customer_id` INT(11) NOT NULL,
     `source_url` TEXT NOT NULL,
     `control_url` TEXT NOT NULL,
     `register_data` TEXT NOT NULL,

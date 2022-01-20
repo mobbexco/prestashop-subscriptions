@@ -193,7 +193,8 @@ class Mobbex_Subscriptions extends Module
             $customer['name'],
             $customer['email'],
             $customer['phone'],
-            $customer['identification']
+            $customer['identification'],
+            $customer['uid'] ?: null
         );
         $subscriber->save();
 
