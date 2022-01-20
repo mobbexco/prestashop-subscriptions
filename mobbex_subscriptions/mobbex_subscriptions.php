@@ -13,6 +13,7 @@ include_once dirname(__FILE__) . '/../mobbex/classes/MobbexHelper.php';
 require_once dirname(__FILE__) . '/classes/Helper.php';
 require_once dirname(__FILE__) . '/classes/Subscription.php';
 require_once dirname(__FILE__) . '/classes/Subscriber.php';
+require_once dirname(__FILE__) . '/classes/Execution.php';
 
 class Mobbex_Subscriptions extends Module
 {
