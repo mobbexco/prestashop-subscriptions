@@ -185,7 +185,7 @@ class MobbexSubscriber extends \Mobbex\Model
             return !$this->api->request([
                 'uri'    => 'subscriptions/' . $this->subscription_uid . '/subscriber/' . $this->uid . '/execution',
                 'method' => 'GET',
-            ]);;
+            ]);
         } catch (\Exception $e) {
             \PrestaShopLogger::addLog('Mobbex Subscription Create/Update Error: ' . $e->getMessage(), 3, null, 'Mobbex', $this->product_id, true);
         }

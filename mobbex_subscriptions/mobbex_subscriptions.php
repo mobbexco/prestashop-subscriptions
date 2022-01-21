@@ -7,7 +7,9 @@ include_once dirname(__FILE__) . '/../mobbex/classes/Api.php';
 include_once dirname(__FILE__) . '/../mobbex/classes/Model.php';
 include_once dirname(__FILE__) . '/../mobbex/classes/Updater.php';
 include_once dirname(__FILE__) . '/../mobbex/classes/Exception.php';
+include_once dirname(__FILE__) . '/../mobbex/classes/OrderUpdate.php';
 include_once dirname(__FILE__) . '/../mobbex/classes/MobbexHelper.php';
+include_once dirname(__FILE__) . '/../mobbex/classes/MobbexTransaction.php';
 
 // Subscription classes
 require_once dirname(__FILE__) . '/classes/Helper.php';
@@ -30,7 +32,7 @@ class Mobbex_Subscriptions extends Module
     public $ps_versions_compliancy = ['min' => '1.6', 'max' => _PS_VERSION_];
 
     /** Controllers availables */
-    public $controllers = [];
+    public $controllers = ['notification'];
 
     /** Display data */
     public $author           = 'Mobbex Co';
@@ -201,6 +203,9 @@ class Mobbex_Subscriptions extends Module
 
         if (!$subscriber->uid)
             throw new \Mobbex\Exception('Mobbex Error: Subscriber creation failed');
+
+        // Save suscriber cart id on a cookie to use later on callback
+        Context::getContext()->cookie->subscriber_cart_id = $cart->id;
 
         return [
             'id'         => $subscription->uid,

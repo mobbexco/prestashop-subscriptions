@@ -63,6 +63,6 @@ class Helper
     public function getSubscriberByUid($uid)
     {
         $cart_id = \Db::getInstance()->getValue('SELECT cart_id FROM ' . _DB_PREFIX_ . "mobbex_subscriber WHERE uid = '$uid'");
-        return $cart_id ? new \MobbexSubscription($cart_id) : null;
+        return $cart_id ? new \MobbexSubscriber($cart_id) : null;
     }
 }
