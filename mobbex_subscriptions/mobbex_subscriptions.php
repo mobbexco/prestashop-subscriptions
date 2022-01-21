@@ -71,6 +71,22 @@ class Mobbex_Subscriptions extends Module
     }
 
     /**
+     * Try to update the module.
+     * 
+     * @return bool Result of update.
+     */
+    public function runUpdate()
+    {
+        try {
+            return !$this->updater->updateVersion($this, true);
+        } catch (\PrestaShopException $e) {
+            \MobbexHelper::log('Mobbex Subscriptions Update Error: ' . $e->getMessage(), null, true);
+        }
+
+        return false;
+    }
+
+    /**
      * Register module hooks dependig on prestashop version.
      * 
      * @return bool Result of the registration
@@ -95,7 +111,7 @@ class Mobbex_Subscriptions extends Module
 
     public function hookDisplayMobbexConfiguration($form)
     {
-        $form = array_merge_recursive($form, [
+        /*$form = array_merge_recursive($form, [
             'form' => [
                 'tabs'  => [
                     'tab_subscriptions' => $this->l('Suscripciones'),
@@ -124,7 +140,15 @@ class Mobbex_Subscriptions extends Module
                     ],
                 ]
             ]
-        ]);
+        ]);*/
+
+        // Run update if is possible
+        if (!empty($_GET['run_subs_update']))
+            $this->runUpdate() && Tools::redirectAdmin(\MobbexHelper::getUpgradeURL());
+
+        // Add update message
+        if (empty($_GET['run_subs_update']) && $this->updater->hasUpdates($this->version))
+            $form['form']['description'] = "¡Nueva actualización disponible! Haga <a href='$_SERVER[REQUEST_URI]&run_subs_update=1'>clic aquí</a> para actualizar Mobbex Subscriptions a la versión " . $this->updater->latestRelease['tag_name'];
 
         return $form;
     }
