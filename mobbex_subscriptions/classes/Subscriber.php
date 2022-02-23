@@ -146,11 +146,11 @@ class MobbexSubscriber extends \Mobbex\Model
         $dates = $subscription->calculateDates();
 
         $data = [
-            'uri'    => 'subscriptions/' . $this->subscription_uid . '/subscriber',
+            'uri'    => 'subscriptions/' . $this->subscription_uid . '/subscriber/' . $this->uid,
             'method' => 'POST',
             'body'   => [
                 'total'     => $subscription->total,
-                'reference' => $this->cart_id,
+                'reference' => (string) $this->cart_id,
                 'test'      => $this->test,
                 'startDate' => [
                     'day'   => date('d', strtotime($dates['next'])),
@@ -170,7 +170,7 @@ class MobbexSubscriber extends \Mobbex\Model
         try {
             return $this->api->request($data);
         } catch (\Exception $e) {
-            \PrestaShopLogger::addLog('Mobbex Subscription Create/Update Error: ' . $e->getMessage(), 3, null, 'Mobbex', $this->product_id, true);
+            \PrestaShopLogger::addLog('Mobbex Subscriber Create/Update Error: ' . $e->getMessage(), 3, null, 'Mobbex', $this->cart_id, true);
         }
     }
 
@@ -182,12 +182,12 @@ class MobbexSubscriber extends \Mobbex\Model
     public function execute()
     {
         try {
-            return !$this->api->request([
+            return $this->api->request([
                 'uri'    => 'subscriptions/' . $this->subscription_uid . '/subscriber/' . $this->uid . '/execution',
                 'method' => 'GET',
             ]);
         } catch (\Exception $e) {
-            \PrestaShopLogger::addLog('Mobbex Subscription Create/Update Error: ' . $e->getMessage(), 3, null, 'Mobbex', $this->product_id, true);
+            \PrestaShopLogger::addLog('Mobbex Subscription Execution Error: ' . $e->getMessage(), 3, null, 'Mobbex', $this->cart_id, true);
         }
 
         return false;
@@ -212,6 +212,7 @@ class MobbexSubscriber extends \Mobbex\Model
             $this->control_url = $result['subscriberUrl'];
         }
 
-        return $result && parent::save($null_values, $auto_date);
+        // Remember, Mobbex returns an empty array on success edit
+        return ($result || $result == []) && parent::save($null_values, $auto_date);
     }
 }
