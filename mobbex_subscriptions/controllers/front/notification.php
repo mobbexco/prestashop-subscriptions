@@ -74,14 +74,14 @@ class Mobbex_SubscriptionsNotificationModuleFrontController extends ModuleFrontC
      */
     public function webhook()
     {
-        if (empty($_POST['data']) || empty($_POST['type']))
+        if ((empty($_POST['data']) && !isset($_SERVER['CONTENT_TYPE'])) || (empty($_POST['type']) && !isset($_SERVER['CONTENT_TYPE'])))
             MobbexHelper::log('Invalid Webhook Data', $_REQUEST, true, true);
 
         // Get order and transaction data
-        $cartId = $_POST['data']['subscriber']['reference'];
+        $data   = isset($_SERVER['CONTENT_TYPE']) && $_SERVER['CONTENT_TYPE'] == 'application/json' ? json_decode(file_get_contents('php://input'), true) : MobbexHelper::getTransactionData($_POST['data']);
+        $cartId = $data['subscriber']['reference'];
         $order  = MobbexHelper::getOrderByCartId($cartId, true);
-        $data   = MobbexHelper::getTransactionData($_POST['data']);
-
+        
         // Get subscription and subscriber from uid
         $subscription = $this->helper->getSubscriptionByUid($_POST['data']['subscription']['uid']);
         $subscriber   = $this->helper->getSubscriberByUid($_POST['data']['subscriber']['uid']);
