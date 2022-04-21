@@ -74,26 +74,27 @@ class Mobbex_SubscriptionsNotificationModuleFrontController extends ModuleFrontC
      */
     public function webhook()
     {
-        if ((empty($_POST['data']) && !isset($_SERVER['CONTENT_TYPE'])) || (empty($_POST['type']) && !isset($_SERVER['CONTENT_TYPE'])))
+        $postData = isset($_SERVER['CONTENT_TYPE']) && $_SERVER['CONTENT_TYPE'] == 'application/json' ? json_decode(file_get_contents('php://input'), true) : $_POST['data'];
+        if (!$postData || empty($postData['type']))
             MobbexHelper::log('Invalid Webhook Data', $_REQUEST, true, true);
 
         // Get order and transaction data
-        $data   = isset($_SERVER['CONTENT_TYPE']) && $_SERVER['CONTENT_TYPE'] == 'application/json' ? json_decode(file_get_contents('php://input'), true) : MobbexHelper::getTransactionData($_POST['data']);
-        $cartId = $data['subscriber']['reference'];
+        $cartId = $postData['subscriber']['reference'];
         $order  = MobbexHelper::getOrderByCartId($cartId, true);
-        
+        $data   = MobbexHelper::getTransactionData($postData);
+
         // Get subscription and subscriber from uid
-        $subscription = $this->helper->getSubscriptionByUid($_POST['data']['subscription']['uid']);
-        $subscriber   = $this->helper->getSubscriberByUid($_POST['data']['subscriber']['uid']);
+        $subscription = $this->helper->getSubscriptionByUid($postData['subscription']['uid']);
+        $subscriber   = $this->helper->getSubscriberByUid($postData['subscriber']['uid']);
         
         if (!$subscription || !$subscriber)
             MobbexHelper::log('Subscription or subscriber cannot be loaded', $_REQUEST, true, true);
 
-        switch ($_POST['type']) {
+        switch ($postData['type']) {
             case 'subscription:registration':
                 // Save registration data and update subscriber state
-                $subscriber->register_data = json_encode($_POST['data']);
-                $subscriber->state = $_POST['data']['context']['status'] == 'success';
+                $subscriber->register_data = json_encode($postData);
+                $subscriber->state = $postData['context']['status'] == 'success';
                 $subscriber->update();
 
                 // Save transaction to show data in order widget
@@ -111,7 +112,7 @@ class Mobbex_SubscriptionsNotificationModuleFrontController extends ModuleFrontC
                 // If Order exists
                 if ($order) {
                     // Update payment method name
-                    $order->payment = $_POST['data']['source']['name'];
+                    $order->payment = $postData['source']['name'];
 
                     // Update order status only if it was not updated recently
                     if ($order->getCurrentState() != $data['order_status']) {
@@ -134,7 +135,7 @@ class Mobbex_SubscriptionsNotificationModuleFrontController extends ModuleFrontC
                 $dates = $subscription->calculateDates();
 
                 $execution = new MobbexExecution(
-                    $_POST['data']['execution']['uid'],
+                    $postData['execution']['uid'],
                     $subscription->uid,
                     $subscriber->uid,
                     $data['order_status'],
