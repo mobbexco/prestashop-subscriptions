@@ -74,7 +74,8 @@ class Mobbex_SubscriptionsNotificationModuleFrontController extends ModuleFrontC
      */
     public function webhook()
     {
-        $postData = isset($_SERVER['CONTENT_TYPE']) && $_SERVER['CONTENT_TYPE'] == 'application/json' ? json_decode(file_get_contents('php://input'), true) : $_POST['data'];
+        $postData = isset($_SERVER['CONTENT_TYPE']) && $_SERVER['CONTENT_TYPE'] == 'application/json' ? json_decode(file_get_contents('php://input'), true) : $_POST;
+        $postData = $postData['data'];
         if (!$postData || empty($postData['type']))
             MobbexHelper::log('Invalid Webhook Data', $_REQUEST, true, true);
 
