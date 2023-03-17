@@ -3,23 +3,28 @@
 defined('_PS_VERSION_') || exit;
 
 // Main module classes
-include_once dirname(__FILE__) . '/../mobbex/classes/Api.php';
-include_once dirname(__FILE__) . '/../mobbex/classes/Model.php';
-include_once dirname(__FILE__) . '/../mobbex/classes/Updater.php';
-include_once dirname(__FILE__) . '/../mobbex/classes/Exception.php';
-include_once dirname(__FILE__) . '/../mobbex/classes/OrderUpdate.php';
-include_once dirname(__FILE__) . '/../mobbex/classes/MobbexHelper.php';
-include_once dirname(__FILE__) . '/../mobbex/classes/MobbexTransaction.php';
+include_once dirname(__FILE__) . '/../mobbex/Models/AbstractModel.php';
+include_once dirname(__FILE__) . '/../mobbex/Models/Model.php';
+include_once dirname(__FILE__) . '/../mobbex/Models/Updater.php';
+include_once dirname(__FILE__) . '/../mobbex/Models/OrderUpdate.php';
+include_once dirname(__FILE__) . '/../mobbex/Models/Helper.php';
+include_once dirname(__FILE__) . '/../mobbex/Models/Transaction.php';
+include_once dirname(__FILE__) . '/../mobbex/Models/Logger.php';
+include_once dirname(__FILE__) . '/../mobbex/Models/Config.php';
+include_once dirname(__FILE__) . '/../mobbex/Models/Registrar.php';
+include_once dirname(__FILE__) . '/../mobbex/Models/Task.php';
 
 // Subscription classes
+require_once dirname(__FILE__) . '/classes/Api.php';
+require_once dirname(__FILE__) . '/classes/Exception.php'; 
 require_once dirname(__FILE__) . '/classes/Helper.php';
 require_once dirname(__FILE__) . '/classes/Subscription.php';
 require_once dirname(__FILE__) . '/classes/Subscriber.php';
 require_once dirname(__FILE__) . '/classes/Execution.php';
 
-class Mobbex_Subscriptions extends Module
+class Mobbex_Subscriptions extends PaymentModuleCore
 {
-    /** @var \Mobbex\Updater */
+    /** @var \Mobbex\PS\Checkout\Models\Updater */
     public $updater;
 
     /** Module indentifier */
@@ -41,6 +46,8 @@ class Mobbex_Subscriptions extends Module
     public $confirmUninstall = '¿Seguro que desea desinstalar el módulo?';
     public $tab              = 'payments_gateways';
 
+    public $helper;
+    
     public function __construct()
     {
         $this->checkDependencies();
@@ -50,12 +57,12 @@ class Mobbex_Subscriptions extends Module
             return;
 
         $this->helper  = new \Mobbex\Subscriptions\Helper;
-        $this->updater = new \Mobbex\Updater('mobbexco/prestashop-subscriptions');
+        $this->updater = new \Mobbex\PS\Checkout\Models\Updater('mobbexco/prestashop-subscriptions');
     }
 
     public function checkDependencies()
     {
-        if (!class_exists('\\Mobbex\\Model'))
+        if (!class_exists('\\Mobbex\\Models\\Model'))
             $this->warning = 'Es necesario que el módulo principal de Mobbex esté instalado.';
 
         if (!extension_loaded('curl'))
@@ -64,10 +71,22 @@ class Mobbex_Subscriptions extends Module
 
     public function install()
     {
-        // Get install query from sql file
-        $sql = str_replace(['PREFIX_', 'ENGINE_TYPE'], [_DB_PREFIX_, _MYSQL_ENGINE_], file_get_contents(dirname(__FILE__) . '/install.sql'));
+        $logger = new \Mobbex\PS\Checkout\Models\Logger();
 
-        return !$this->warning && DB::getInstance()->execute($sql) && parent::install() && $this->registerHooks();
+        try {
+            // Get install query from sql file
+            $sql = str_replace(['PREFIX_', 'ENGINE_TYPE'], [_DB_PREFIX_, _MYSQL_ENGINE_], file_get_contents(__DIR__ . '/install.sql'));
+
+            return
+                parent::install()
+                && DB::getInstance()->execute($sql)
+                && $this->unregisterHooks()
+                && $this->registerHooks();
+        } catch (\Mobbex\Subscriptions\Exception $e) { 
+            $logger->log('debug', 'Install sql: ' . $e->getMessage(), $sql);
+        }
+
+        return false;
     }
 
     /**
@@ -80,9 +99,9 @@ class Mobbex_Subscriptions extends Module
         try {
             return !$this->updater->updateVersion($this, true);
         } catch (\PrestaShopException $e) {
-            \MobbexHelper::log('Mobbex Subscriptions Update Error: ' . $e->getMessage(), null, true);
+            $logger = new \Mobbex\PS\Checkout\Models\Logger();
+            $logger->log('debug', 'Mobbex Subscriptions Update Error: ' . $e->getMessage());
         }
-
         return false;
     }
 
@@ -103,6 +122,26 @@ class Mobbex_Subscriptions extends Module
 
         foreach ($hooks as $hookName) {
             if (!$this->registerHook($hookName))
+                return false;
+        }
+
+        return true;
+    }
+ 
+    /**
+     * Unregister all current module hooks.
+     * 
+     * @return bool Result.
+     */
+    public function unregisterHooks()
+    {
+        // Get hooks used by module
+        $hooks = \Db::getInstance()->executeS(
+            'SELECT DISTINCT(`id_hook`) FROM `' . _DB_PREFIX_ . 'hook_module` WHERE `id_module` = ' . $this->id
+        ) ?: [];
+
+        foreach ($hooks as $hook) {
+            if (!$this->unregisterHook($hook['id_hook']) || !$this->unregisterExceptions($hook['id_hook']))
                 return false;
         }
 
@@ -144,9 +183,10 @@ class Mobbex_Subscriptions extends Module
 
         // Run update if is possible
         if (!empty($_GET['run_subs_update']))
-            $this->runUpdate() && Tools::redirectAdmin(\MobbexHelper::getUpgradeURL());
+            $this->runUpdate() && Tools::redirectAdmin(\Mobbex\PS\Checkout\Models\Helper::getUpgradeURL());
 
         // Add update message
+        $this->updater = new \Mobbex\PS\Checkout\Models\Updater('mobbexco/prestashop-subscriptions');     
         if (empty($_GET['run_subs_update']) && $this->updater->hasUpdates($this->version))
             $form['form']['description'] = "¡Nueva actualización disponible! Haga <a href='$_SERVER[REQUEST_URI]&run_subs_update=1'>clic aquí</a> para actualizar Mobbex Subscriptions a la versión " . $this->updater->latestRelease['tag_name'];
 
@@ -204,13 +244,14 @@ class Mobbex_Subscriptions extends Module
     public function hookActionMobbexProcessPayment($cart)
     {
         // Load subscription from cart
-        $subscription = $this->helper->getSubscriptionFromCart($cart);
+        $subsHelper  = new \Mobbex\Subscriptions\Helper;
+        $subscription = $subsHelper->getSubscriptionFromCart($cart);
 
         if (!$subscription)
-            throw new \Mobbex\Exception('Mobbex Error: No Subscriptions in cart');
+            throw new \Mobbex\Subscriptions\Exception('Mobbex Error: No Subscriptions in cart');
 
         // Get customer data
-        $customer = \MobbexHelper::getCustomer($cart);
+        $customer = \Mobbex\PS\Checkout\Models\Helper::getCustomer($cart);
 
         // Create subscriber
         $subscriber = new \MobbexSubscriber(
@@ -226,7 +267,7 @@ class Mobbex_Subscriptions extends Module
         $subscriber->save();
 
         if (!$subscriber->uid)
-            throw new \Mobbex\Exception('Mobbex Error: Subscriber creation failed');
+            throw new \Mobbex\Subscriptions\Exception('Mobbex Error: Subscriber creation failed');
 
         // Save suscriber cart id on a cookie to use later on callback
         Context::getContext()->cookie->subscriber_cart_id = $cart->id;
@@ -235,7 +276,7 @@ class Mobbex_Subscriptions extends Module
             'id'         => $subscription->uid,
             'sid'        => $subscriber->uid,
             'url'        => $subscriber->source_url,
-            'return_url' => $this->helper->getUrl('notification', 'callback', ['product_id' => $subscription->product_id])
+            'return_url' => $subsHelper->getUrl('notification', 'callback', ['product_id' => $subscription->product_id])
         ];
     }
 }
