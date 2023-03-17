@@ -7,17 +7,18 @@ class Mobbex_SubscriptionsNotificationModuleFrontController extends ModuleFrontC
     /** @var \Mobbex\Subscriptions\Helper */
     public $helper;
 
-    /** @var \Mobbex\OrderUpdate */
+    /** @var \Mobbex\PS\Checkout\Models\OrderUpdate */
     public $orderUpdate;
 
     public function postProcess()
     {
+        $logger = new \Mobbex\PS\Checkout\Models\Logger;
         // We don't do anything if the module has been disabled by the merchant
         if ($this->module->active == false)
-            \MobbexHelper::log('Notification On Module Inactive (subscriptions endpoint)', $_REQUEST, true, true);
+            $logger->log('fatal', 'Notification On Module Inactive (subscriptions endpoint)', $_REQUEST);
 
         $this->helper      = new \Mobbex\Subscriptions\Helper;
-        $this->orderUpdate = new \Mobbex\OrderUpdate;
+        $this->orderUpdate = new \Mobbex\PS\Checkout\Models\OrderUpdate;
 
         // Get current action
         $action = Tools::getValue('action');
@@ -33,12 +34,12 @@ class Mobbex_SubscriptionsNotificationModuleFrontController extends ModuleFrontC
      * Handles the redirect after payment.
      */
     public function callback()
-    {
+    {        
         $cart_id  = Context::getContext()->cookie->subscriber_cart_id;
         $customer = Context::getContext()->customer;
-        $order_id = MobbexHelper::getOrderByCartId($cart_id);
+        $order_id = \Mobbex\PS\Checkout\Models\Helper::getOrderByCartId($cart_id);
         $status   = Tools::getValue('status');
-
+        
         // If order was not created
         if (empty($order_id)) {
             $seconds = 10;
@@ -47,7 +48,7 @@ class Mobbex_SubscriptionsNotificationModuleFrontController extends ModuleFrontC
             while ($seconds > 0 && !$order_id) {
                 sleep(1);
                 $seconds--;
-                $order_id = MobbexHelper::getOrderByCartId($cart_id);
+                $order_id = \Mobbex\PS\Checkout\Models\Helper::getOrderByCartId($cart_id);
             }
         }
 
@@ -74,32 +75,36 @@ class Mobbex_SubscriptionsNotificationModuleFrontController extends ModuleFrontC
      */
     public function webhook()
     {
-        if (empty($_POST['data']) || empty($_POST['type']))
-            MobbexHelper::log('Invalid Webhook Data', $_REQUEST, true, true);
+        $logger      = new \Mobbex\PS\Checkout\Models\Logger;
+        $transaction = new \Mobbex\PS\Checkout\Models\Transaction;
+        $postData = isset($_SERVER['CONTENT_TYPE']) && $_SERVER['CONTENT_TYPE'] == 'application/json' ? json_decode(file_get_contents('php://input'), true) : $_POST;
+
+        if (empty($postData['data']) || empty($postData['type']))
+            $logger->log('fatal', 'notification > webhook | Invalid Webhook Data', $postData);
 
         // Get order and transaction data
-        $cartId = $_POST['data']['subscriber']['reference'];
-        $order  = MobbexHelper::getOrderByCartId($cartId, true);
-        $data   = MobbexHelper::getTransactionData($_POST['data']);
-
+        $cartId = $postData['data']['subscriber']['reference'];
+        $order  = \Mobbex\PS\Checkout\Models\Helper::getOrderByCartId($cartId, true);
+        $data   = \Mobbex\PS\Checkout\Models\Helper::getTransactionData($postData['data']);
+        
         // Get subscription and subscriber from uid
-        $subscription = $this->helper->getSubscriptionByUid($_POST['data']['subscription']['uid']);
-        $subscriber   = $this->helper->getSubscriberByUid($_POST['data']['subscriber']['uid']);
+        $subscription = $this->helper->getSubscriptionByUid($postData['data']['subscription']['uid']);
+        $subscriber   = $this->helper->getSubscriberByUid($postData['data']['subscriber']['uid']);
         
         if (!$subscription || !$subscriber)
-            MobbexHelper::log('Subscription or subscriber cannot be loaded', $_REQUEST, true, true);
+            $logger->log('error', 'Subscription or subscriber cannot be loaded', $postData);
 
-        switch ($_POST['type']) {
+        switch ($postData['type']) {
             case 'subscription:registration':
                 // Save registration data and update subscriber state
-                $subscriber->register_data = json_encode($_POST['data']);
-                $subscriber->state = $_POST['data']['context']['status'] == 'success';
+                $subscriber->register_data = json_encode($postData['data']);
+                $subscriber->state = $postData['data']['context']['status'] == 'success';
                 $subscriber->update();
 
                 // Save transaction to show data in order widget
                 $data['total']        = $subscription->total;
                 $data['order_status'] = (int) Configuration::get($subscriber->state ? 'PS_OS_PAYMENT' : 'PS_OS_ERROR');
-                MobbexTransaction::saveTransaction($cartId, $data);
+                $transaction->saveTransaction($cartId, $data);
 
                 // Continue only if validation was approved
                 if (!$subscriber->state)
@@ -111,7 +116,7 @@ class Mobbex_SubscriptionsNotificationModuleFrontController extends ModuleFrontC
                 // If Order exists
                 if ($order) {
                     // Update payment method name
-                    $order->payment = $_POST['data']['source']['name'];
+                    $order->payment = $postData['data']['source']['name'];
 
                     // Update order status only if it was not updated recently
                     if ($order->getCurrentState() != $data['order_status']) {
@@ -123,7 +128,7 @@ class Mobbex_SubscriptionsNotificationModuleFrontController extends ModuleFrontC
                     $order->update();
                 } else {
                     // Create and validate Order
-                    $order = MobbexHelper::createOrder($cartId, $data['order_status'], $data['source_name'], $this->module);
+                    $order = \Mobbex\PS\Checkout\Models\Helper::createOrder($cartId, $data['order_status'], $data['source_name'], $this->module);
 
                     if ($order)
                         $this->orderUpdate->updateOrderPayment($order, $data);
@@ -134,7 +139,7 @@ class Mobbex_SubscriptionsNotificationModuleFrontController extends ModuleFrontC
                 $dates = $subscription->calculateDates();
 
                 $execution = new MobbexExecution(
-                    $_POST['data']['execution']['uid'],
+                    $postData['data']['execution']['uid'],
                     $subscription->uid,
                     $subscriber->uid,
                     $data['order_status'],
@@ -155,6 +160,6 @@ class Mobbex_SubscriptionsNotificationModuleFrontController extends ModuleFrontC
                 break;
         }
 
-        die('OK: ' . MobbexHelper::MOBBEX_VERSION);
+        die('OK: ' . \Mobbex\PS\Checkout\Models\Config::MODULE_VERSION);
     }
 }
