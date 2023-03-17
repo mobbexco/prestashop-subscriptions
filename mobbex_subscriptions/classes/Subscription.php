@@ -1,8 +1,8 @@
 <?php
 
-class MobbexSubscription extends \Mobbex\Model
+class MobbexSubscription extends \Mobbex\PS\Checkout\Models\Model
 {
-    /** @var \Mobbex\Api */
+    /** @var \Mobbex\Subscriptions\Api */
     public $api;
 
     /** @var \Mobbex\Subscriptions\Helper */
@@ -113,7 +113,7 @@ class MobbexSubscription extends \Mobbex\Model
         $freeTrial = null,
         $signupFee = null
     ) {
-        $this->api    = new \Mobbex\Api;
+        $this->api    = new \Mobbex\Subscriptions\Api;
         $this->helper = new \Mobbex\Subscriptions\Helper;
 
         parent::__construct(...func_get_args());
@@ -142,15 +142,15 @@ class MobbexSubscription extends \Mobbex\Model
                 'setupFee'    => $this->signup_fee,
                 'interval'    => $this->interval,
                 'trial'       => $this->free_trial,
-                'options'     => \MobbexHelper::getOptions()
+                'options'     => \Mobbex\Subscriptions\Helper::getOptions()
             ]
         ];
 
         try {
-            $response = $this->api->request($data);
+            $response = \Mobbex\Subscriptions\Api::request($data);
 
             return isset($response['uid']) ? $response['uid'] : $this->uid;
-        } catch (\Exception $e) {
+        } catch (\Mobbex\Subscriptions\Exception $e) {
             \PrestaShopLogger::addLog('Mobbex Subscription Create/Update Error: ' . $e->getMessage(), 3, null, 'Mobbex', $this->product_id, true);
         }
     }

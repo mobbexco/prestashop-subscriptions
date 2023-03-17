@@ -1,6 +1,6 @@
 <?php
 
-class MobbexExecution extends \Mobbex\Model
+class MobbexExecution extends \Mobbex\PS\Checkout\Models\Model
 {
     public $uid;
     public $subscription_uid;
