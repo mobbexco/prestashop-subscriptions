@@ -22,10 +22,13 @@ require_once dirname(__FILE__) . '/classes/Subscription.php';
 require_once dirname(__FILE__) . '/classes/Subscriber.php';
 require_once dirname(__FILE__) . '/classes/Execution.php';
 
-class Mobbex_Subscriptions extends PaymentModuleCore
+class Mobbex_Subscriptions extends Module
 {
     /** @var \Mobbex\PS\Checkout\Models\Updater */
     public $updater;
+
+    /** @var \Mobbex\Subscriptions\Helper */
+    public $helper;
 
     /** Module indentifier */
     public $name = 'mobbex_subscriptions';
@@ -46,18 +49,17 @@ class Mobbex_Subscriptions extends PaymentModuleCore
     public $confirmUninstall = '¿Seguro que desea desinstalar el módulo?';
     public $tab              = 'payments_gateways';
 
-    public $helper;
     
     public function __construct()
     {
         $this->checkDependencies();
+        $this->helper  = new \Mobbex\Subscriptions\Helper;
+        $this->updater = new \Mobbex\PS\Checkout\Models\Updater('mobbexco/prestashop-subscriptions');
         parent::__construct();
 
         if ($this->warning)
             return;
 
-        $this->helper  = new \Mobbex\Subscriptions\Helper;
-        $this->updater = new \Mobbex\PS\Checkout\Models\Updater('mobbexco/prestashop-subscriptions');
     }
 
     public function checkDependencies()
@@ -244,8 +246,7 @@ class Mobbex_Subscriptions extends PaymentModuleCore
     public function hookActionMobbexProcessPayment($cart)
     {
         // Load subscription from cart
-        $subsHelper  = new \Mobbex\Subscriptions\Helper;
-        $subscription = $subsHelper->getSubscriptionFromCart($cart);
+        $subscription = $this->helper->getSubscriptionFromCart($cart);
 
         if (!$subscription)
             throw new \Mobbex\Subscriptions\Exception('Mobbex Error: No Subscriptions in cart');
@@ -276,7 +277,7 @@ class Mobbex_Subscriptions extends PaymentModuleCore
             'id'         => $subscription->uid,
             'sid'        => $subscriber->uid,
             'url'        => $subscriber->source_url,
-            'return_url' => $subsHelper->getUrl('notification', 'callback', ['product_id' => $subscription->product_id])
+            'return_url' => $this->helper->getUrl('notification', 'callback', ['product_id' => $subscription->product_id])
         ];
     }
 }
