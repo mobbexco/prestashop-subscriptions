@@ -9,14 +9,18 @@ class Mobbex_SubscriptionsNotificationModuleFrontController extends ModuleFrontC
 
     /** @var \Mobbex\PS\Checkout\Models\OrderUpdate */
     public $orderUpdate;
+    
+    /** @var \Mobbex\PS\Checkout\Models\Logger */
+    public $logger;
 
     public function postProcess()
     {
-        $logger = new \Mobbex\PS\Checkout\Models\Logger;
+        $this->logger = new \Mobbex\PS\Checkout\Models\Logger();
+        
         // We don't do anything if the module has been disabled by the merchant
         if ($this->module->active == false)
-            $logger->log('fatal', 'Notification On Module Inactive (subscriptions endpoint)', $_REQUEST);
-
+            $this->logger->log('fatal', 'Notification On Module Inactive (subscriptions endpoint)', $_REQUEST);
+        
         $this->helper      = new \Mobbex\Subscriptions\Helper;
         $this->orderUpdate = new \Mobbex\PS\Checkout\Models\OrderUpdate;
 
@@ -75,12 +79,11 @@ class Mobbex_SubscriptionsNotificationModuleFrontController extends ModuleFrontC
      */
     public function webhook()
     {
-        $logger      = new \Mobbex\PS\Checkout\Models\Logger;
         $transaction = new \Mobbex\PS\Checkout\Models\Transaction;
-        $postData = isset($_SERVER['CONTENT_TYPE']) && $_SERVER['CONTENT_TYPE'] == 'application/json' ? json_decode(file_get_contents('php://input'), true) : $_POST;
+        $postData    = isset($_SERVER['CONTENT_TYPE']) && $_SERVER['CONTENT_TYPE'] == 'application/json' ? json_decode(file_get_contents('php://input'), true) : $_POST;
 
         if (empty($postData['data']) || empty($postData['type']))
-            $logger->log('fatal', 'notification > webhook | Invalid Webhook Data', $postData);
+            $this->logger->log('fatal', 'notification > webhook | Invalid Webhook Data', $postData);
 
         // Get order and transaction data
         $cartId = $postData['data']['subscriber']['reference'];
@@ -92,7 +95,7 @@ class Mobbex_SubscriptionsNotificationModuleFrontController extends ModuleFrontC
         $subscriber   = $this->helper->getSubscriberByUid($postData['data']['subscriber']['uid']);
         
         if (!$subscription || !$subscriber)
-            $logger->log('error', 'Subscription or subscriber cannot be loaded', $postData);
+            $this->logger->log('error', 'Subscription or subscriber cannot be loaded', $postData);
 
         switch ($postData['type']) {
             case 'subscription:registration':
@@ -128,7 +131,7 @@ class Mobbex_SubscriptionsNotificationModuleFrontController extends ModuleFrontC
                     $order->update();
                 } else {
                     // Create and validate Order
-                    $order = \Mobbex\PS\Checkout\Models\Helper::createOrder($cartId, $data['order_status'], $data['source_name'], $this->module);
+                    $order = \Mobbex\PS\Checkout\Models\Helper::createOrder($cartId, $data['order_status'], $data['source_name'], \Module::getInstanceByName('mobbex'));
 
                     if ($order)
                         $this->orderUpdate->updateOrderPayment($order, $data);
