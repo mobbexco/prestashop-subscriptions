@@ -1,8 +1,8 @@
 <?php
 
-class MobbexSubscriber extends \Mobbex\Model
+class MobbexSubscriber extends \Mobbex\PS\Checkout\Models\Model
 {
-    /** @var \Mobbex\Api */
+    /** @var \Mobbex\Subscriptions\Api */
     public $api;
 
     /** @var \Mobbex\Subscriptions\Helper */
@@ -129,7 +129,7 @@ class MobbexSubscriber extends \Mobbex\Model
         $identification = null,
         $customerId = null
     ) {
-        $this->api    = new \Mobbex\Api;
+        $this->api    = new \Mobbex\Subscriptions\Api;
         $this->helper = new \Mobbex\Subscriptions\Helper;
 
         parent::__construct(...func_get_args());
@@ -168,8 +168,8 @@ class MobbexSubscriber extends \Mobbex\Model
         ];
 
         try {
-            return $this->api->request($data);
-        } catch (\Exception $e) {
+            return \Mobbex\Subscriptions\Api::request($data);
+        } catch (\Mobbex\Subscriptions\Exception $e) {
             \PrestaShopLogger::addLog('Mobbex Subscriber Create/Update Error: ' . $e->getMessage(), 3, null, 'Mobbex', $this->cart_id, true);
         }
     }
@@ -182,11 +182,11 @@ class MobbexSubscriber extends \Mobbex\Model
     public function execute()
     {
         try {
-            return $this->api->request([
+            return \Mobbex\Subscriptions\Api::request([
                 'uri'    => 'subscriptions/' . $this->subscription_uid . '/subscriber/' . $this->uid . '/execution',
                 'method' => 'GET',
             ]);
-        } catch (\Exception $e) {
+        } catch (\Mobbex\Subscriptions\Exception $e) {
             \PrestaShopLogger::addLog('Mobbex Subscription Execution Error: ' . $e->getMessage(), 3, null, 'Mobbex', $this->cart_id, true);
         }
 
