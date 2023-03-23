@@ -30,6 +30,9 @@ class Mobbex_Subscriptions extends Module
     /** @var \Mobbex\Subscriptions\Helper */
     public $helper;
 
+    /** @var \Mobbex\PS\Checkout\Models\Logger */
+    public $logger;
+
     /** Module indentifier */
     public $name = 'mobbex_subscriptions';
 
@@ -55,11 +58,12 @@ class Mobbex_Subscriptions extends Module
         $this->checkDependencies();
         $this->helper  = new \Mobbex\Subscriptions\Helper;
         $this->updater = new \Mobbex\PS\Checkout\Models\Updater('mobbexco/prestashop-subscriptions');
+        $this->logger = new \Mobbex\PS\Checkout\Models\Logger();
+
         parent::__construct();
 
         if ($this->warning)
             return;
-
     }
 
     public function checkDependencies()
@@ -73,8 +77,6 @@ class Mobbex_Subscriptions extends Module
 
     public function install()
     {
-        $logger = new \Mobbex\PS\Checkout\Models\Logger();
-
         try {
             // Get install query from sql file
             $sql = str_replace(['PREFIX_', 'ENGINE_TYPE'], [_DB_PREFIX_, _MYSQL_ENGINE_], file_get_contents(__DIR__ . '/install.sql'));
@@ -85,7 +87,7 @@ class Mobbex_Subscriptions extends Module
                 && $this->unregisterHooks()
                 && $this->registerHooks();
         } catch (\Mobbex\Subscriptions\Exception $e) { 
-            $logger->log('debug', 'Install sql: ' . $e->getMessage(), $sql);
+            $this->logger->log('debug', 'Install sql: ' . $e->getMessage(), $sql);
         }
 
         return false;
@@ -101,8 +103,7 @@ class Mobbex_Subscriptions extends Module
         try {
             return !$this->updater->updateVersion($this, true);
         } catch (\PrestaShopException $e) {
-            $logger = new \Mobbex\PS\Checkout\Models\Logger();
-            $logger->log('debug', 'Mobbex Subscriptions Update Error: ' . $e->getMessage());
+            $this->logger->log('debug', 'Mobbex Subscriptions Update Error: ' . $e->getMessage());
         }
         return false;
     }
