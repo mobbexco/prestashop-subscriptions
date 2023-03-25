@@ -78,12 +78,19 @@ class Mobbex_Subscriptions extends Module
     public function install()
     {
         try {
-            // Get install query from sql file
-            $sql = str_replace(['PREFIX_', 'ENGINE_TYPE'], [_DB_PREFIX_, _MYSQL_ENGINE_], file_get_contents(__DIR__ . '/install.sql'));
+            // First try to create each table
+            foreach (['execution', 'subscriber', 'subscription'] as $table) {
+                $query = str_replace(
+                    ['DB_PREFIX_', 'ENGINE_TYPE'],
+                    [_DB_PREFIX_, _MYSQL_ENGINE_],
+                    file_get_contents(dirname(__FILE__) . "/sql/$table.sql")
+                );
 
-            return
-                parent::install()
-                && DB::getInstance()->execute($sql)
+                if (!DB::getInstance()->execute($query))
+                    return false;
+            }
+
+            return parent::install()
                 && $this->unregisterHooks()
                 && $this->registerHooks();
         } catch (\Mobbex\Subscriptions\Exception $e) { 
