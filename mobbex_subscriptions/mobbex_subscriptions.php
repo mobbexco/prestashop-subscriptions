@@ -16,7 +16,7 @@ include_once dirname(__FILE__) . '/../mobbex/Models/Task.php';
 
 // Subscription classes
 require_once dirname(__FILE__) . '/classes/Api.php';
-require_once dirname(__FILE__) . '/classes/Exception.php'; 
+require_once dirname(__FILE__) . '/classes/Exception.php';
 require_once dirname(__FILE__) . '/classes/Helper.php';
 require_once dirname(__FILE__) . '/classes/Subscription.php';
 require_once dirname(__FILE__) . '/classes/Subscriber.php';
@@ -43,7 +43,7 @@ class Mobbex_Subscriptions extends Module
     public $ps_versions_compliancy = ['min' => '1.6', 'max' => _PS_VERSION_];
 
     /** Controllers availables */
-    public $controllers = ['notification'];
+    public $controllers = ['notification', 'execution'];
 
     /** Display data */
     public $author           = 'Mobbex Co';
@@ -52,7 +52,6 @@ class Mobbex_Subscriptions extends Module
     public $confirmUninstall = '¿Seguro que desea desinstalar el módulo?';
     public $tab              = 'payments_gateways';
 
-    
     public function __construct()
     {
         $this->checkDependencies();
@@ -128,6 +127,7 @@ class Mobbex_Subscriptions extends Module
             'displayMobbexCategorySettings',
             'actionProductUpdate',
             'actionMobbexProcessPayment',
+            'displayMobbexOrderWidget',
         ];
 
         foreach ($hooks as $hookName) {
@@ -287,5 +287,30 @@ class Mobbex_Subscriptions extends Module
             'url'        => $subscriber->source_url,
             'return_url' => $this->helper->getUrl('notification', 'callback', ['product_id' => $subscription->product_id])
         ];
+    }
+
+    public function hookDisplayMobbexOrderWidget($params)
+    {
+        $subscriber = \MobbexSubscriber::get($params['cart_id']);
+
+        if (!$subscriber)
+            return;
+
+        $executions = [];
+
+        foreach (\MobbexSubscriber::getExecutions($subscriber['uid']) as $execution)
+            $executions[] = json_decode($execution['data'], true);
+
+        $subscriber['test'] = $subscriber['test'] ? 'Yes' : 'No';
+
+        $this->context->smarty->assign([
+            'returnUrl'  => urlencode($_SERVER['REQUEST_URI']),
+            'hash'       => md5(\Configuration::get(\Mobbex\PS\Checkout\Models\Helper::K_API_KEY) . '!' . \Configuration::get(\Mobbex\PS\Checkout\Models\Helper::K_ACCESS_TOKEN)),
+            'subscriber' => $subscriber,
+            'executions' => $executions,
+            'retryUrl'   => $this->helper->getUrl('execution', 'execution'),
+        ]);
+
+        return $this->display(__FILE__, 'views/order-widget.tpl');
     }
 }
