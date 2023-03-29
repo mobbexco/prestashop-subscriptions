@@ -34,7 +34,7 @@ class Mobbex_Subscriptions extends Module
     public $name = 'mobbex_subscriptions';
 
     /** Module version */
-    public $version = '1.0.0';
+    public $version = '1.0.1';
 
     /** Compatibility range */
     public $ps_versions_compliancy = ['min' => '1.6', 'max' => _PS_VERSION_];
