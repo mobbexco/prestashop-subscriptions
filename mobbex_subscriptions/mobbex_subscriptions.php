@@ -77,7 +77,7 @@ class Mobbex_Subscriptions extends Module
             // First try to create each table
             foreach (['execution', 'subscriber', 'subscription'] as $table) {
                 $query = str_replace(
-                    ['DB_PREFIX_', 'ENGINE_TYPE'],
+                    ['PREFIX_', 'ENGINE_TYPE'],
                     [_DB_PREFIX_, _MYSQL_ENGINE_],
                     file_get_contents(dirname(__FILE__) . "/sql/$table.sql")
                 );
