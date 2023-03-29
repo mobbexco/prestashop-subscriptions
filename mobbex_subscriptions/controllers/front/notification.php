@@ -9,20 +9,15 @@ class Mobbex_SubscriptionsNotificationModuleFrontController extends ModuleFrontC
 
     /** @var \Mobbex\PS\Checkout\Models\OrderUpdate */
     public $orderUpdate;
-    
-    /** @var \Mobbex\PS\Checkout\Models\Logger */
-    public $logger;
 
     public function postProcess()
     {
-        $this->logger = new \Mobbex\PS\Checkout\Models\Logger();
-        
-        // We don't do anything if the module has been disabled by the merchant
-        if ($this->module->active == false)
-            $this->logger->log('fatal', 'Notification On Module Inactive (subscriptions endpoint)', $_REQUEST);
-        
         $this->helper      = new \Mobbex\Subscriptions\Helper;
         $this->orderUpdate = new \Mobbex\PS\Checkout\Models\OrderUpdate;
+
+        // We don't do anything if the module has been disabled by the merchant
+        if ($this->module->active == false)
+            $this->helper->log('fatal', 'Notification On Module Inactive (subscriptions endpoint)', $_REQUEST);
 
         // Get current action
         $action = Tools::getValue('action');
@@ -83,7 +78,7 @@ class Mobbex_SubscriptionsNotificationModuleFrontController extends ModuleFrontC
         $postData    = isset($_SERVER['CONTENT_TYPE']) && $_SERVER['CONTENT_TYPE'] == 'application/json' ? json_decode(file_get_contents('php://input'), true) : $_POST;
 
         if (empty($postData['data']) || empty($postData['type']))
-            $this->logger->log('fatal', 'notification > webhook | Invalid Webhook Data', $postData);
+            $this->helper->log('fatal', 'notification > webhook | Invalid Webhook Data', $postData);
 
         // Get order and transaction data
         $cartId = $postData['data']['subscriber']['reference'];
@@ -95,7 +90,7 @@ class Mobbex_SubscriptionsNotificationModuleFrontController extends ModuleFrontC
         $subscriber   = $this->helper->getSubscriberByUid($postData['data']['subscriber']['uid']);
         
         if (!$subscription || !$subscriber)
-            $this->logger->log('error', 'Subscription or subscriber cannot be loaded', $postData);
+            $this->helper->log('error', 'Subscription or subscriber cannot be loaded', $postData);
 
         switch ($postData['type']) {
             case 'subscription:registration':

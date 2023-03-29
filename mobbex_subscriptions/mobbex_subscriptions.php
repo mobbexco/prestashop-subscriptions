@@ -30,9 +30,6 @@ class Mobbex_Subscriptions extends Module
     /** @var \Mobbex\Subscriptions\Helper */
     public $helper;
 
-    /** @var \Mobbex\PS\Checkout\Models\Logger */
-    public $logger;
-
     /** Module indentifier */
     public $name = 'mobbex_subscriptions';
 
@@ -58,11 +55,10 @@ class Mobbex_Subscriptions extends Module
         $this->checkDependencies();
         $this->helper  = new \Mobbex\Subscriptions\Helper;
         $this->updater = new \Mobbex\PS\Checkout\Models\Updater('mobbexco/prestashop-subscriptions');
-        $this->logger = new \Mobbex\PS\Checkout\Models\Logger();
 
         parent::__construct();
 
-        if ($this->warning)
+        if (!empty($this->warning))
             return;
     }
 
@@ -94,7 +90,7 @@ class Mobbex_Subscriptions extends Module
                 && $this->unregisterHooks()
                 && $this->registerHooks();
         } catch (\Mobbex\Subscriptions\Exception $e) { 
-            $this->logger->log('debug', 'Install sql: ' . $e->getMessage(), $sql);
+            $this->helper->log('debug', 'Error on Install Mobbex Subscriptions: ' . $e->getMessage());
         }
 
         return false;
@@ -110,7 +106,7 @@ class Mobbex_Subscriptions extends Module
         try {
             return !$this->updater->updateVersion($this, true);
         } catch (\PrestaShopException $e) {
-            $this->logger->log('debug', 'Mobbex Subscriptions Update Error: ' . $e->getMessage());
+            $this->helper->log('debug', 'Mobbex Subscriptions Update Error: ' . $e->getMessage());
         }
         return false;
     }
