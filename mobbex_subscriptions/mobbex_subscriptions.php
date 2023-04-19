@@ -3,20 +3,21 @@
 defined('_PS_VERSION_') || exit;
 
 // Main module classes
-include_once dirname(__FILE__) . '/../mobbex/Models/AbstractModel.php';
-include_once dirname(__FILE__) . '/../mobbex/Models/Model.php';
-include_once dirname(__FILE__) . '/../mobbex/Models/Updater.php';
-include_once dirname(__FILE__) . '/../mobbex/Models/OrderUpdate.php';
-include_once dirname(__FILE__) . '/../mobbex/Models/Helper.php';
-include_once dirname(__FILE__) . '/../mobbex/Models/Transaction.php';
-include_once dirname(__FILE__) . '/../mobbex/Models/Logger.php';
-include_once dirname(__FILE__) . '/../mobbex/Models/Config.php';
-include_once dirname(__FILE__) . '/../mobbex/Models/Registrar.php';
-include_once dirname(__FILE__) . '/../mobbex/Models/Task.php';
+require_once _PS_MODULE_DIR_ . 'mobbex/Models/AbstractModel.php';
+require_once _PS_MODULE_DIR_ . 'mobbex/Models/Model.php';
+require_once _PS_MODULE_DIR_ . 'mobbex/Models/OrderHelper.php';
+require_once _PS_MODULE_DIR_ . 'mobbex/Models/Transaction.php';
+require_once _PS_MODULE_DIR_ . 'mobbex/Models/Registrar.php';
+require_once _PS_MODULE_DIR_ . 'mobbex/Models/Updater.php';
+require_once _PS_MODULE_DIR_ . 'mobbex/Models/Sdk.php';
+require_once _PS_MODULE_DIR_ . 'mobbex/Models/Config.php';
+
+// Sdk classes
+require_once _PS_MODULE_DIR_ . 'mobbex/vendor/mobbexco/php-plugins-sdk/src/Platform.php';
+require_once _PS_MODULE_DIR_ . 'mobbex/vendor/mobbexco/php-plugins-sdk/src/Modules/Subscriber.php';
+require_once _PS_MODULE_DIR_ . 'mobbex/vendor/mobbexco/php-plugins-sdk/src/Modules/Subscription.php';
 
 // Subscription classes
-require_once dirname(__FILE__) . '/classes/Api.php';
-require_once dirname(__FILE__) . '/classes/Exception.php'; 
 require_once dirname(__FILE__) . '/classes/Helper.php';
 require_once dirname(__FILE__) . '/classes/Subscription.php';
 require_once dirname(__FILE__) . '/classes/Subscriber.php';
@@ -53,9 +54,10 @@ class Mobbex_Subscriptions extends Module
     public function __construct()
     {
         $this->checkDependencies();
-        $this->helper  = new \Mobbex\Subscriptions\Helper;
-        $this->updater = new \Mobbex\PS\Checkout\Models\Updater('mobbexco/prestashop-subscriptions');
+        $this->helper = new \Mobbex\Subscriptions\Helper;
 
+        //Mobbex main module classes 
+        $this->updater = new \Mobbex\PS\Checkout\Models\Updater('mobbexco/prestashop-subscriptions');
         parent::__construct();
 
         if (!empty($this->warning))
@@ -89,7 +91,7 @@ class Mobbex_Subscriptions extends Module
             return parent::install()
                 && $this->unregisterHooks()
                 && $this->registerHooks();
-        } catch (\Mobbex\Subscriptions\Exception $e) { 
+        } catch (\Mobbex\Exception $e) { 
             $this->helper->log('debug', 'Error on Install Mobbex Subscriptions: ' . $e->getMessage());
         }
 
@@ -189,7 +191,7 @@ class Mobbex_Subscriptions extends Module
 
         // Run update if is possible
         if (!empty($_GET['run_subs_update']))
-            $this->runUpdate() && Tools::redirectAdmin(\Mobbex\PS\Checkout\Models\Helper::getUpgradeURL());
+            $this->runUpdate() && Tools::redirectAdmin(\Mobbex\PS\Checkout\Models\OrderHelper::getUpgradeURL());
 
         // Add update message
         $this->updater = new \Mobbex\PS\Checkout\Models\Updater('mobbexco/prestashop-subscriptions');     
@@ -249,14 +251,16 @@ class Mobbex_Subscriptions extends Module
 
     public function hookActionMobbexProcessPayment($cart)
     {
+        // instance main module helper
+        $customer = new \Mobbex\PS\Checkout\Models\OrderHelper;
         // Load subscription from cart
         $subscription = $this->helper->getSubscriptionFromCart($cart);
 
         if (!$subscription)
-            throw new \Mobbex\Subscriptions\Exception('Mobbex Error: No Subscriptions in cart');
+            throw new \Mobbex\Exception('Mobbex Error: No Subscriptions in cart');
 
         // Get customer data
-        $customer = \Mobbex\PS\Checkout\Models\Helper::getCustomer($cart);
+        $customer = $customer->getCustomer($cart);
 
         // Create subscriber
         $subscriber = new \MobbexSubscriber(
@@ -272,7 +276,7 @@ class Mobbex_Subscriptions extends Module
         $subscriber->save();
 
         if (!$subscriber->uid)
-            throw new \Mobbex\Subscriptions\Exception('Mobbex Error: Subscriber creation failed');
+            throw new \Mobbex\Exception('Mobbex Error: Subscriber creation failed');
 
         // Save suscriber cart id on a cookie to use later on callback
         Context::getContext()->cookie->subscriber_cart_id = $cart->id;
