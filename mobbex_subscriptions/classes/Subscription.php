@@ -2,7 +2,7 @@
 
 class MobbexSubscription extends \Mobbex\PS\Checkout\Models\Model
 {
-    /** @var \Mobbex\Subscriptions\Api */
+    /** @var \Mobbex\Api */
     public $api;
 
     /** @var \Mobbex\Subscriptions\Helper */
@@ -92,7 +92,7 @@ class MobbexSubscription extends \Mobbex\PS\Checkout\Models\Model
     /**
      * Build a Subscription from product id.
      * 
-     * @param int|null $productId
+     * @param int|null $product_id
      * @param string|null $type "manual" | "dynamic"
      * @param int|float|null $total Amount to charge.
      * @param string|null $name
@@ -103,7 +103,7 @@ class MobbexSubscription extends \Mobbex\PS\Checkout\Models\Model
      * @param int|float|null $signupFee Different initial amount.
      */
     public function __construct(
-        $productId = null,
+        $product_id = null,
         $type = null,
         $total = null,
         $name = null,
@@ -113,7 +113,7 @@ class MobbexSubscription extends \Mobbex\PS\Checkout\Models\Model
         $freeTrial = null,
         $signupFee = null
     ) {
-        $this->api    = new \Mobbex\Subscriptions\Api;
+        $this->api    = new \Mobbex\Api;
         $this->helper = new \Mobbex\Subscriptions\Helper;
 
         parent::__construct(...func_get_args());
@@ -126,31 +126,24 @@ class MobbexSubscription extends \Mobbex\PS\Checkout\Models\Model
      */
     public function create()
     {
-        $data = [
-            'uri'    => 'subscriptions/' . $this->uid,
-            'method' => 'POST',
-            'body'   => [
-                'total'       => $this->total,
-                'currency'    => 'ARS',
-                'type'        => $this->type,
-                'reference'   => 'ps_product_id:' . $this->product_id,
-                'name'        => $this->name,
-                'description' => $this->description,
-                'webhook'     => $this->helper->getUrl('notification', 'webhook', ['product_id' => $this->product_id]),
-                'return_url'  => $this->helper->getUrl('notification', 'callback', ['product_id' => $this->product_id]),
-                'limit'       => $this->limit,
-                'setupFee'    => $this->signup_fee,
-                'interval'    => $this->interval,
-                'trial'       => $this->free_trial,
-                'options'     => \Mobbex\Subscriptions\Helper::getOptions()
-            ]
-        ];
-
         try {
-            $response = \Mobbex\Subscriptions\Api::request($data);
+            $response = new \Mobbex\Modules\Subscription(
+                $this->product_id,
+                $this->uid,
+                $this->type,
+                $this->helper->getUrl('notification', 'callback', ['product_id' => $this->product_id]),
+                $this->helper->getUrl('notification', 'webhook', ['product_id' => $this->product_id]),
+                $this->total,
+                $this->name,
+                $this->description,
+                $this->interval,
+                $this->limit,
+                $this->free_trial,
+                $this->signup_fee
+            );
 
-            return isset($response['uid']) ? $response['uid'] : $this->uid;
-        } catch (\Mobbex\Subscriptions\Exception $e) {
+            return isset($response->uid) ? $response->uid : $this->uid;
+        } catch (\Mobbex\Exception $e) {
             \PrestaShopLogger::addLog('Mobbex Subscription Create/Update Error: ' . $e->getMessage(), 3, null, 'Mobbex', $this->product_id, true);
         }
     }
