@@ -77,4 +77,16 @@ class MobbexExecution extends \Mobbex\PS\Checkout\Models\Model
     ) {
         parent::__construct(...func_get_args());
     }
+
+    /**
+     * Get Mobbex execution from DB with the uid
+     * 
+     * @param int $uid
+     * @return array
+     */
+    public static function getData($uid)
+    {
+        $execution = \Db::getInstance()->executes('SELECT * FROM ' . _DB_PREFIX_ . 'mobbex_execution' . ' WHERE uid = "' . $uid . '";');
+        return !empty($execution[0]) ? json_decode($execution[0]['data'], true) : false;
+    }
 }

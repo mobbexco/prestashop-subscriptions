@@ -215,4 +215,27 @@ class MobbexSubscriber extends \Mobbex\PS\Checkout\Models\Model
         // Remember, Mobbex returns an empty array on success edit
         return ($result || $result == []) && parent::save($null_values, $auto_date);
     }
+
+    /**
+     * Get Mobbex subscriber from DB with the cart id
+     * 
+     * @param int $cart_id
+     * @return object
+     */
+    public static function get($cart_id)
+    {
+        $subscriber = \Db::getInstance()->executes('SELECT * FROM ' . _DB_PREFIX_ . 'mobbex_subscriber' . ' WHERE cart_id = "' . $cart_id . '";');
+        return $subscriber[0];
+    }
+
+    /**
+     * Get subscriber execution from DB with the subscriber uid
+     * 
+     * @param int $subscriber_uid
+     * @return object
+     */
+    public static function getExecutions($subscriber_uid)
+    {
+        return \Db::getInstance()->executes('SELECT * FROM ' . _DB_PREFIX_ . 'mobbex_execution' . ' WHERE subscriber_uid = "' . $subscriber_uid . '" ORDER BY date DESC LIMIT 4;');
+    }
 }
