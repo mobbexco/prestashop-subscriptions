@@ -7,7 +7,7 @@ include_once dirname(__FILE__) . '/../mobbex/Models/AbstractModel.php';
 include_once dirname(__FILE__) . '/../mobbex/Models/Model.php';
 include_once dirname(__FILE__) . '/../mobbex/Models/Updater.php';
 include_once dirname(__FILE__) . '/../mobbex/Models/OrderUpdate.php';
-include_once dirname(__FILE__) . '/../mobbex/Models/Helper.php';
+include_once dirname(__FILE__) . '/../mobbex/Models/OrderHelper.php';
 include_once dirname(__FILE__) . '/../mobbex/Models/Transaction.php';
 include_once dirname(__FILE__) . '/../mobbex/Models/Logger.php';
 include_once dirname(__FILE__) . '/../mobbex/Models/Config.php';
@@ -189,7 +189,7 @@ class Mobbex_Subscriptions extends Module
 
         // Run update if is possible
         if (!empty($_GET['run_subs_update']))
-            $this->runUpdate() && Tools::redirectAdmin(\Mobbex\PS\Checkout\Models\Helper::getUpgradeURL());
+            $this->runUpdate() && Tools::redirectAdmin(\Mobbex\PS\Checkout\Models\OrderHelper::getUpgradeURL());
 
         // Add update message
         $this->updater = new \Mobbex\PS\Checkout\Models\Updater('mobbexco/prestashop-subscriptions');     
@@ -256,7 +256,7 @@ class Mobbex_Subscriptions extends Module
             throw new \Mobbex\Subscriptions\Exception('Mobbex Error: No Subscriptions in cart');
 
         // Get customer data
-        $customer = \Mobbex\PS\Checkout\Models\Helper::getCustomer($cart);
+        $customer = \Mobbex\PS\Checkout\Models\OrderHelper::getCustomer($cart);
 
         // Create subscriber
         $subscriber = new \MobbexSubscriber(
