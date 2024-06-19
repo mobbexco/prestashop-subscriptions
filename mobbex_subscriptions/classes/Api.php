@@ -25,9 +25,9 @@ class Api
      */
     public function __construct($api_key = null, $access_token = null)
     {
-        self::$api_key      = $api_key      ?: \Configuration::get(\Mobbex\PS\Checkout\Models\Helper::K_API_KEY);
-        self::$access_token = $access_token ?: \Configuration::get(\Mobbex\PS\Checkout\Models\Helper::K_ACCESS_TOKEN);
-        self::$ready        = self::$api_key && self::$access_token;
+        self::$api_key      = $api_key      ?: \Mobbex\Platform::$settings['api_key'];
+        self::$access_token = $access_token ?: \Mobbex\Platform::$settings['access_token'];
+        self::$ready       = self::$api_key && self::$access_token;
     }
 
     /**

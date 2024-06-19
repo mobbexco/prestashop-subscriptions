@@ -68,19 +68,20 @@ class Helper
 
      public static function getOptions()
     {
-        $custom_logo = \Configuration::get(\Mobbex\PS\Checkout\Models\Helper::K_THEME_LOGO);
+        $config      = new \Mobbex\PS\Checkout\Models\Config;
+        $custom_logo = isset($config->settings['theme_logo']) ? $config->settings['theme_logo'] : Tools::getShopDomainSsl(true, true) . _PS_IMG_ . \Configuration::get('PS_LOGO');
 
         // If store's logo option is disabled, use the one configured in mobbex
         $default_logo = null;
-        if (!empty(\Configuration::get(\Mobbex\PS\Checkout\Models\Helper::K_THEME_SHOP_LOGO))) {
+        if (!empty($config->settings['shop_theme_logo'])) {
             $default_logo = \Tools::getShopDomainSsl(true, true) . _PS_IMG_ . \Configuration::get('PS_LOGO');
         }
 
-        $theme_background = \Configuration::get(\Mobbex\PS\Checkout\Models\Helper::K_THEME_BACKGROUND);
-        $theme_primary = \Configuration::get(\Mobbex\PS\Checkout\Models\Helper::K_THEME_PRIMARY);
+        $theme_background = $config->settings['background'];
+        $theme_primary    = $config->settings['color'];
 
         $theme = array(
-            "type" => \Configuration::get(\Mobbex\PS\Checkout\Models\Helper::K_THEME) ?: \Mobbex\PS\Checkout\Models\Helper::K_DEF_THEME,
+            "type" => $config->settings['theme'],
             "header" => [
                 "name" => \Configuration::get('PS_SHOP_NAME'),
                 "logo" => !empty($custom_logo) ? $custom_logo : $default_logo,
@@ -92,7 +93,7 @@ class Helper
         );
 
         $options = array(
-            'button' => (\Configuration::get(\Mobbex\PS\Checkout\Models\Helper::K_EMBED) == true),
+            'button' => ($config->settings['embed'] == true),
             'domain' => \Context::getContext()->shop->domain,
             "theme" => $theme,
             // Will redirect automatically on Successful Payment Result
@@ -100,7 +101,7 @@ class Helper
                 "success" => true,
                 "failure" => false,
             ],
-            "platform" => \Mobbex\PS\Checkout\Models\Helper::getPlatform(),
+            "platform" => \Mobbex\Platform::toArray(),
         );
 
         return $options;
