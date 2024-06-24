@@ -2,26 +2,8 @@
 
 defined('_PS_VERSION_') || exit;
 
-// Main module classes
-require_once _PS_MODULE_DIR_ . 'mobbex/Models/AbstractModel.php';
-require_once _PS_MODULE_DIR_ . 'mobbex/Models/Model.php';
-require_once _PS_MODULE_DIR_ . 'mobbex/Models/OrderHelper.php';
-require_once _PS_MODULE_DIR_ . 'mobbex/Models/Transaction.php';
-require_once _PS_MODULE_DIR_ . 'mobbex/Models/Registrar.php';
-require_once _PS_MODULE_DIR_ . 'mobbex/Models/Updater.php';
-require_once _PS_MODULE_DIR_ . 'mobbex/Models/Sdk.php';
-require_once _PS_MODULE_DIR_ . 'mobbex/Models/Config.php';
-
-// Sdk classes
-require_once _PS_MODULE_DIR_ . 'mobbex/vendor/mobbexco/php-plugins-sdk/src/Platform.php';
-require_once _PS_MODULE_DIR_ . 'mobbex/vendor/mobbexco/php-plugins-sdk/src/Modules/Subscriber.php';
-require_once _PS_MODULE_DIR_ . 'mobbex/vendor/mobbexco/php-plugins-sdk/src/Modules/Subscription.php';
-
-// Subscription classes
-require_once dirname(__FILE__) . '/classes/Helper.php';
-require_once dirname(__FILE__) . '/classes/Subscription.php';
-require_once dirname(__FILE__) . '/classes/Subscriber.php';
-require_once dirname(__FILE__) . '/classes/Execution.php';
+// Load composer autoload
+require_once _PS_MODULE_DIR_ . 'mobbex/vendor/autoload.php';
 
 class Mobbex_Subscriptions extends Module
 {
