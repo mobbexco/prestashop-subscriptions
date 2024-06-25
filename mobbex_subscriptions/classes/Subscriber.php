@@ -2,7 +2,7 @@
 
 class MobbexSubscriber extends \Mobbex\PS\Checkout\Models\Model
 {
-    /** @var \Mobbex\Subscriptions\Api */
+    /** @var \Mobbex\Api */
     public $api;
 
     /** @var \Mobbex\Subscriptions\Helper */
@@ -129,7 +129,7 @@ class MobbexSubscriber extends \Mobbex\PS\Checkout\Models\Model
         $identification = null,
         $customerId = null
     ) {
-        $this->api    = new \Mobbex\Subscriptions\Api;
+        $this->api    = new \Mobbex\Api;
         $this->helper = new \Mobbex\Subscriptions\Helper;
 
         parent::__construct(...func_get_args());
@@ -145,31 +145,24 @@ class MobbexSubscriber extends \Mobbex\PS\Checkout\Models\Model
         $subscription = $this->helper->getSubscriptionByUid($this->subscription_uid);
         $dates = $subscription->calculateDates();
 
-        $data = [
-            'uri'    => 'subscriptions/' . $this->subscription_uid . '/subscriber/' . $this->uid,
-            'method' => 'POST',
-            'body'   => [
-                'total'     => $subscription->total,
-                'reference' => (string) $this->cart_id,
-                'test'      => $this->test,
-                'startDate' => [
-                    'day'   => date('d', strtotime($dates['next'])),
-                    'month' => date('m', strtotime($dates['next'])),
-                    'year'  => date('y', strtotime($dates['next'])),
-                ],
-                'customer'  => [
+        $customer = [
                     'name'           => $this->name,
                     'email'          => $this->email,
                     'phone'          => $this->phone,
                     'identification' => $this->identification,
                     'uid'            => $this->customer_id,
-                ]
-            ]
         ];
 
         try {
-            return \Mobbex\Subscriptions\Api::request($data);
-        } catch (\Mobbex\Subscriptions\Exception $e) {
+            return new \Mobbex\Modules\Subscriber(
+                (string) $this->cart_id,
+                $this->uid,
+                $this->subscription_uid,
+                $dates['next'],
+                $customer,
+                $subscription->total,
+            );
+        } catch (\Mobbex\Exception $e) {
             \PrestaShopLogger::addLog('Mobbex Subscriber Create/Update Error: ' . $e->getMessage(), 3, null, 'Mobbex', $this->cart_id, true);
         }
     }
@@ -181,12 +174,17 @@ class MobbexSubscriber extends \Mobbex\PS\Checkout\Models\Model
      */
     public function execute()
     {
+        $subscription = $this->helper->getSubscriptionByUid($this->subscription_uid);
+
         try {
-            return \Mobbex\Subscriptions\Api::request([
-                'uri'    => 'subscriptions/' . $this->subscription_uid . '/subscriber/' . $this->uid . '/execution',
-                'method' => 'GET',
-            ]);
-        } catch (\Mobbex\Subscriptions\Exception $e) {
+            return new \Mobbex\Modules\Subscriber(
+                (string) $this->cart_id,
+                $this->uid,
+                $this->subscription_uid,
+                $this->customer_id,
+                $subscription->total,
+            );
+        } catch (\Mobbex\Exception $e) {
             \PrestaShopLogger::addLog('Mobbex Subscription Execution Error: ' . $e->getMessage(), 3, null, 'Mobbex', $this->cart_id, true);
         }
 
@@ -206,11 +204,9 @@ class MobbexSubscriber extends \Mobbex\PS\Checkout\Models\Model
         $result = $this->create();
 
         // Try to save data
-        if ($result) {
-            $this->uid         = $result['uid'];
-            $this->source_url  = $result['sourceUrl'];
-            $this->control_url = $result['subscriberUrl'];
-        }
+        $this->uid         = $result->uid ?: $this->uid;
+        $this->source_url  = $result->sourceUrl ?: $this->source_url;
+        $this->control_url = $result->controlUrl ?: $this->control_url;
 
         // Remember, Mobbex returns an empty array on success edit
         return ($result || $result == []) && parent::save($null_values, $auto_date);
