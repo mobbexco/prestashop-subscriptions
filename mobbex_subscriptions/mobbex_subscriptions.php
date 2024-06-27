@@ -5,6 +5,12 @@ defined('_PS_VERSION_') || exit;
 // Load composer autoload
 require_once _PS_MODULE_DIR_ . 'mobbex/vendor/autoload.php';
 
+// Load plugin classes
+require_once _PS_MODULE_DIR_ . 'mobbex_subscriptions/classes/Helper.php';
+require_once _PS_MODULE_DIR_ . 'mobbex_subscriptions/classes/Execution.php';
+require_once _PS_MODULE_DIR_ . 'mobbex_subscriptions/classes/Subscriber.php';
+require_once _PS_MODULE_DIR_ . 'mobbex_subscriptions/classes/Subscription.php';
+
 class Mobbex_Subscriptions extends Module
 {
     /** @var \Mobbex\PS\Checkout\Models\Updater */
