@@ -8,6 +8,9 @@ class MobbexSubscriber extends \Mobbex\PS\Checkout\Models\Model
     /** @var \Mobbex\Subscriptions\Helper */
     public $helper;
 
+    /** @var \Mobbex\PS\Checkout\Models\Config */
+    public $config;
+
     public $cart_id;
     public $uid;
     public $subscription_uid;
@@ -130,40 +133,33 @@ class MobbexSubscriber extends \Mobbex\PS\Checkout\Models\Model
         $customerId = null
     ) {
         $this->api    = new \Mobbex\Api;
+        $this->config = new \Mobbex\PS\Checkout\Models\Config();
         $this->helper = new \Mobbex\Subscriptions\Helper;
 
+        $this->api::init(
+            $this->config->settings['api_key'], 
+            $this->config->settings['access_token']
+        );
+        
         parent::__construct(...func_get_args());
     }
 
     /**
-     * Create a Subscriber using Mobbex API.
+     * Get a Subscriber from Mobbex API.
      * 
-     * @return string|null UID if created correctly.
+     * @param array $subscriberUid required subscriber uid
+     * 
+     * @return \MobbexSubscriber|null Mobbex Subscriber
      */
-    public function create()
+    public function get($subscriberUid)
     {
-        $subscription = $this->helper->getSubscriptionByUid($this->subscription_uid);
-        $dates = $subscription->calculateDates();
-
-        $customer = [
-                    'name'           => $this->name,
-                    'email'          => $this->email,
-                    'phone'          => $this->phone,
-                    'identification' => $this->identification,
-                    'uid'            => $this->customer_id,
-        ];
-
         try {
-            return new \Mobbex\Modules\Subscriber(
-                (string) $this->cart_id,
-                $this->uid,
-                $this->subscription_uid,
-                $dates['next'],
-                $customer,
-                $subscription->total,
-            );
+            return $this->api::request([
+                'method' => 'GET',
+                'uri'    => 'subscriptions/' . $this->subscription_uid . '/subscriber/' . $subscriberUid,
+            ]);
         } catch (\Mobbex\Exception $e) {
-            \PrestaShopLogger::addLog('Mobbex Subscriber Create/Update Error: ' . $e->getMessage(), 3, null, 'Mobbex', $this->cart_id, true);
+            \PrestaShopLogger::addLog('Get Mobbex Subscriber Error > Mobbexsubscriber->get(): ' . $e->getMessage(), 3, null, 'Mobbex', $subscriberUid, true);
         }
     }
 
@@ -192,23 +188,46 @@ class MobbexSubscriber extends \Mobbex\PS\Checkout\Models\Model
     }
 
     /**
-     * Save/update data to db creating subscriber from Mobbex API.
+     * Save/update data to db getting subscriber from Mobbex API.
      * 
      * @param bool $null_values
      * @param bool $auto_date
      * 
      * @return bool True if saved correctly.
      */
-    public function save($null_values = false, $auto_date = true)
+    public function save($subscriberUid = null , $null_values = false, $auto_date = true)
     {
-        $result = $this->create();
-
-        // Try to save data
-        $this->uid         = $result->uid ?: $this->uid;
-        $this->source_url  = $result->sourceUrl ?: $this->source_url;
-        $this->control_url = $result->controlUrl ?: $this->control_url;
-
+        // Gets subscriber and set its properties
+        $result = $this->get($subscriberUid);
+        $this->setSubscriber($result);
+        
         // Remember, Mobbex returns an empty array on success edit
         return ($result || $result == []) && parent::save($null_values, $auto_date);
+    }
+
+    /**
+     * Sets MobbexSubscriber properties with response
+     * 
+     * @param array $result
+     */
+    public function setSubscriber($result)
+    {
+        // Gets subscription data
+        $subscription = $this->helper->getSubscriptionByUid($this->subscription_uid);
+        $dates        = $subscription->calculateDates();
+
+        // Sets class properties
+        $this->control_url    = isset($result['url']) ? $result['url'] : '';
+        $this->next_execution = isset($dates['next']) ? $dates['next'] : '';
+        $this->start_date     = isset($dates['current']) ? $dates['current'] : '';
+        $this->source_url     = isset($result['url']) ? $result['url'] . '/source' : '';
+        $this->uid            = isset($result['subscriber']['uid']) ? $result['subscriber']['uid'] : '';
+        $this->state          = isset($result['subscriber']['status']) ? $result['subscriber']['status'] : '';
+        $this->customer_id    = isset($result['subscriber']['customerData']['uid']) ? $result['subscriber']['customerData']['uid'] : '';
+        $this->name           = isset($result['subscriber']['customerData']['name']) ? $result['subscriber']['customerData']['name'] : '';
+        $this->register_data  = isset($result['subscriber']['executions'][0]) ? json_encode($result['subscriber']['executions'][0]) : '';
+        $this->email          = isset($result['subscriber']['customerData']['email']) ? $result['subscriber']['customerData']['email'] : '';
+        $this->phone          = isset($result['subscriber']['customerData']['phone']) ? $result['subscriber']['customerData']['phone'] : '';
+        $this->identification = isset($result['subscriber']['customerData']['identification']) ? $result['subscriber']['customerData']['identification'] : '';
     }
 }
