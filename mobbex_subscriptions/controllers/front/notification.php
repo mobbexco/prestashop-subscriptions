@@ -79,88 +79,67 @@ class Mobbex_SubscriptionsNotificationModuleFrontController extends ModuleFrontC
      */
     public function webhook()
     {
-        $transaction = new \Mobbex\PS\Checkout\Models\Transaction;
         $postData    = isset($_SERVER['CONTENT_TYPE']) && $_SERVER['CONTENT_TYPE'] == 'application/json' ? json_decode(file_get_contents('php://input'), true) : $_POST;
 
         if (empty($postData['data']) || empty($postData['type']))
             $this->helper->log('fatal', 'notification > webhook | Invalid Webhook Data', $postData);
 
-        // Get order and transaction data
-        $cartId = $postData['data']['subscriber']['reference'];
-        $order  = $this->mbbxHelper->getOrderByCartId($cartId, true);
-        $data   = \Mobbex\PS\Checkout\Models\Transaction::formatData($postData['data']);
-        
-        // Get subscription and subscriber from uid
-        $subscription = $this->helper->getSubscriptionByUid($postData['data']['subscription']['uid']);
-        $subscriber   = $this->helper->getSubscriberByUid($postData['data']['subscriber']['uid']);
-        
-        if (!$subscription || !$subscriber)
-            $this->helper->log('error', 'Subscription or subscriber cannot be loaded', $postData);
+        // Get order and customer data
+        $cartId      = Tools::getValue('id_cart');
+        $cart        = new \Cart($cartId);
+        $orderHelper = new \Mobbex\PS\Checkout\Models\OrderHelper;
+        $customer    = $orderHelper->getCustomer($cart);
 
-        switch ($postData['type']) {
-            case 'subscription:registration':
-                // Save registration data and update subscriber state
-                $subscriber->register_data = json_encode($postData['data']);
-                $subscriber->state = $postData['data']['context']['status'] == 'success';
-                $subscriber->update();
+        // Manage data based on webhook type
+        if ($postData['type'] == 'checkout'){
+            // Get subscription and subscriber from uid
+            $subscription = $this->helper->getSubscriptionByUid($postData['data']['subscriptions'][0]['subscription']);
+            $subscriber   = $this->helper->getSubscriberByUid($postData['data']['subscriptions'][0]['subscriber']);
 
-                // Save transaction to show data in order widget
-                $data['total']        = $subscription->total;
-                $data['order_status'] = (int) Configuration::get($subscriber->state ? 'PS_OS_PAYMENT' : 'PS_OS_ERROR');
-                $transaction->saveTransaction($cartId, $data);
-
-                // Continue only if validation was approved
-                if (!$subscriber->state)
-                    break;
-
-                // Execute the first charge
-                $subscriber->execute();
-
-                // If Order exists
-                if ($order) {
-                    // Update payment method name
-                    $order->payment = $postData['data']['source']['name'];
-
-                    // Update order status only if it was not updated recently
-                    if ($order->getCurrentState() != $data['order_status']) {
-                        $order->setCurrentState($data['order_status']);
-                        $this->orderUpdate->removeExpirationTasks($order);
-                        $this->orderUpdate->updateOrderPayment($order, $data);
-                    }
-
-                    $order->update();
-                } else {
-                    // Create and validate Order
-                    $order = $this->mbbxHelper->createOrder($cartId, $data['order_status'], $data['source_name'], \Module::getInstanceByName('mobbex'));
-
-                    if ($order)
-                        $this->orderUpdate->updateOrderPayment($order, $data);
-                }
-
-                break;
-            case 'subscription:execution':
-                $dates = $subscription->calculateDates();
-
-                $execution = new MobbexExecution(
-                    $postData['data']['execution']['uid'],
+            // If the subscriber does not exist, create it and save it to the database.
+            if(!$subscriber){
+                $subscriber = new \MobbexSubscriber(
+                    $cart->id,
                     $subscription->uid,
-                    $subscriber->uid,
-                    $data['order_status'],
-                    $data['total'],
-                    $dates['current'],
-                    $data['data']
+                    (bool) \Configuration::get('MOBBEX_TEST_MODE'),
+                    $customer['name'],
+                    $customer['email'],
+                    $customer['phone'],
+                    $customer['identification'],
+                    $customer['uid']
                 );
-                $execution->save();
+                $subscriber->save($postData['data']['subscriptions'][0]['subscriber']);
+            }
 
-                // Update execution dates
-                $subscriber->last_execution = $dates['current'];
-                $subscriber->next_execution = $dates['next'];
+            if (!$subscription || !$subscriber)
+                $this->helper->log('error', 'Subscription or subscriber cannot be loaded', $postData);
 
-                if (!$subscriber->start_date || strtotime($subscriber->start_date) < 0)
-                    $subscriber->start_date = $subscriber->last_execution;
+        } elseif ($postData['type'] == 'subscription:execution') {
+            $subscription = $this->helper->getSubscriptionByUid($postData['data']['subscription']['uid']);
+            $subscriber   = $this->helper->getSubscriberByUid($postData['data']['subscriber']['uid']);
+            $dates = $subscription->calculateDates();
 
-                $subscriber->update();
-                break;
+            $execution = new MobbexExecution(
+                $postData['data']['execution']['uid'],
+                $subscription->uid,
+                $subscriber->uid,
+                $postData['data']['payment']['status']['code'],
+                $postData['data']['payment']['total'],
+                $dates['current'],
+                json_encode($postData['data'])
+            );
+            $execution->save();
+
+            // Update execution dates
+            $subscriber->last_execution = $dates['current'];
+            $subscriber->next_execution = $dates['next'];
+
+            if (!$subscriber->start_date || strtotime($subscriber->start_date) < 0)
+                $subscriber->start_date = $subscriber->last_execution;
+
+            $subscriber->update();
+        } elseif ($postData['type'] == "subscription:subscriber:deleted"){
+            $this->helper->deleteSubscriber($postData['data']['subscriber']['uid']);
         }
 
         die('OK: ' . \Mobbex\PS\Checkout\Models\Config::MODULE_VERSION);
