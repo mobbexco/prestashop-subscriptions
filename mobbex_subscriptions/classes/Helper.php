@@ -15,6 +15,9 @@ class Helper
      */
     public function getUrl($controller, $action, $extraParams = [])
     {
+        if ($action == 'webhook' && \Configuration::get('MOBBEX_DEBUG'))
+            $extraParams['XDEBUG_SESSION_START'] = 'PHPSTORM';
+
         return \Tools::getShopDomainSsl(true, true) . __PS_BASE_URI__ . 'index.php?' . http_build_query(array_merge([
             'fc'         => 'module',
             'module'     => 'mobbex_subscriptions',
