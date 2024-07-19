@@ -16,7 +16,6 @@ class Mobbex_SubscriptionsNotificationModuleFrontController extends ModuleFrontC
     public function postProcess()
     {
         $this->helper      = new \Mobbex\Subscriptions\Helper;
-
         $this->orderUpdate = new \Mobbex\PS\Checkout\Models\OrderUpdate;
         $this->mbbxHelper  = new \Mobbex\PS\Checkout\Models\OrderHelper;
 
@@ -27,51 +26,8 @@ class Mobbex_SubscriptionsNotificationModuleFrontController extends ModuleFrontC
         // Get current action
         $action = Tools::getValue('action');
 
-        if ($action == 'callback') {
-            return $this->callback();
-        } else if ($action == 'webhook') {
+        if ($action == 'webhook')
             return $this->webhook();
-        }
-    }
-
-    /**
-     * Handles the redirect after payment.
-     */
-    public function callback()
-    {        
-        $cart_id  = Context::getContext()->cookie->subscriber_cart_id;
-        $customer = Context::getContext()->customer;
-        $order_id = $this->mbbxHelper->getOrderByCartId($cart_id);
-        $status   = Tools::getValue('status');
-        
-        // If order was not created
-        if (empty($order_id)) {
-            $seconds = 10;
-
-            // Wait for webhook
-            while ($seconds > 0 && !$order_id) {
-                sleep(1);
-                $seconds--;
-                $order_id = $this->mbbxHelper->getOrderByCartId($cart_id);
-            }
-        }
-
-        // Clear cart id cookie
-        Context::getContext()->cookie->subscriber_cart_id = null;
-
-        // If status is ok
-        if ($status > 1 && $status < 400) {
-            // Redirect to order confirmation
-            Tools::redirect('index.php?controller=order-confirmation&' . http_build_query([
-                'id_cart'       => $cart_id,
-                'id_order'      => $order_id,
-                'id_module'     => Module::getModuleIdByName('mobbex'),
-                'key'           => $customer->secure_key,
-            ]));
-        } else {
-            // Go back to checkout
-            Tools::redirect('index.php?controller=order&step=1');
-        }
     }
 
     /**
