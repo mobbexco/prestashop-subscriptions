@@ -262,12 +262,7 @@ class Mobbex_Subscriptions extends Module
 
         $data['customer']['uid'] = $customer['uid'];
         $data['total']          -= $subscription->total;
-        $data['webhook']         = $this->helper->getUrl(
-            'notification', 'webhook', [
-                'product_id'  => $subscription->product_id,
-                'id_cart'     => $cart->id, 
-                'id_customer' => $customer['uid']]
-                ) . '&XDEBUG_SESSION_START=PHPSTORM';
+        $data['webhook']         = $this->helper->getUrl('notification', 'webhook', ['id_cart'     => $cart->id]);
         $data['items'][0]        = [
             'type'      => 'subscription',
             'reference' => $subscription->uid,
