@@ -113,7 +113,8 @@ class Mobbex_Subscriptions extends Module
             'displayMobbexProductSettings',
             'displayMobbexCategorySettings',
             'actionProductUpdate',
-            'actionMobbexProcessPayment',
+            'actionMobbexCheckoutRequest',
+            'actionMobbexWebhook'
         ];
 
         foreach ($hooks as $hookName) {
@@ -237,43 +238,42 @@ class Mobbex_Subscriptions extends Module
         return $subscription->save();
     }
 
-    public function hookActionMobbexProcessPayment($cart)
+    /**
+     * Modify the checkout data that contains a subscription
+     * 
+     * @param  array $data checkout data
+     * 
+     * @return array $data modified data
+     */
+    public function hookActionMobbexCheckoutRequest($data)
     {
-        // instance main module helper
-        $customer = new \Mobbex\PS\Checkout\Models\OrderHelper;
-        // Load subscription from cart
+        $cart = \Context::getContext()->cart;
+        $orderHelper  = new \Mobbex\PS\Checkout\Models\OrderHelper;
+
+        // Get customer data
+        $customer     = $orderHelper->getCustomer($cart);
         $subscription = $this->helper->getSubscriptionFromCart($cart);
 
         if (!$subscription)
             throw new \Mobbex\Exception('Mobbex Error: No Subscriptions in cart');
-
-        // Get customer data
-        $customer = $customer->getCustomer($cart);
-
-        // Create subscriber
-        $subscriber = new \MobbexSubscriber(
-            $cart->id,
-            $subscription->uid,
-            (bool) \Configuration::get('MOBBEX_TEST_MODE'),
-            $customer['name'],
-            $customer['email'],
-            $customer['phone'],
-            $customer['identification'],
-            $customer['uid'] ?: null
-        );
-        $subscriber->save();
-
-        if (!$subscriber->uid)
-            throw new \Mobbex\Exception('Mobbex Error: Subscriber creation failed');
-
+            
         // Save suscriber cart id on a cookie to use later on callback
         Context::getContext()->cookie->subscriber_cart_id = $cart->id;
 
-        return [
-            'id'         => $subscription->uid,
-            'sid'        => $subscriber->uid,
-            'url'        => $subscriber->source_url,
-            'return_url' => $this->helper->getUrl('notification', 'callback', ['product_id' => $subscription->product_id])
+        $data['customer']['uid'] = $customer['uid'];
+        $data['total']          -= $subscription->total;
+        $data['webhook']         = $this->helper->getUrl(
+            'notification', 'webhook', [
+                'product_id'  => $subscription->product_id,
+                'id_cart'     => $cart->id, 
+                'id_customer' => $customer['uid']]
+                ) . '&XDEBUG_SESSION_START=PHPSTORM';
+        $data['items'][0]        = [
+            'type'      => 'subscription',
+            'reference' => $subscription->uid,
+            'total'     => $subscription->total
         ];
+        
+        return $data;
     }
 }
