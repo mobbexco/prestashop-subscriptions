@@ -27,7 +27,7 @@ class Helper
     }
 
     /**
-     * Get a Subscription using UID.
+     * Get a Subscription from db using UID.
      * 
      * @param string $uid
      * 
@@ -67,6 +67,21 @@ class Helper
     {
         $cart_id = \Db::getInstance()->getValue('SELECT cart_id FROM ' . _DB_PREFIX_ . "mobbex_subscriber WHERE uid = '$uid'");
         return $cart_id ? new \MobbexSubscriber($cart_id) : null;
+    }
+
+    /**
+     * Delete Subscriber from Db
+     * 
+     * @param Cart $cart
+     * @param \Mobbex_Subscriptions $subscription
+     * 
+     * @return \MobbexSubscriber|null
+     */
+    public function deleteSubscriber($subscriberUid)
+    {
+        return \Db::getInstance()->execute(
+            "DELETE FROM " . _DB_PREFIX_ . "mobbex_subscriber WHERE uid = '{$subscriberUid}';"
+        );
     }
 
    /**
